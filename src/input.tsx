@@ -1,10 +1,13 @@
 import React, {type ComponentType} from 'react'
 import {
+  type FormPatch,
+  getPublishedId,
   type InputProps,
   type ObjectInputProps,
   type ObjectMember,
   type SchemaType,
   set,
+  setIfMissing,
   unset,
   useClient,
 } from 'sanity'
@@ -25,7 +28,6 @@ import {
 } from './navigator'
 import {SanityDefaultPreview, SearchResultItemPreview, usePerspective} from 'sanity'
 import {usePaneRouter} from 'sanity/structure'
-import {randomKey} from '@sanity/util/content'
 import type {LinkInputProps} from './types'
 import type {LinkRouteDefinition, LinksPluginProps, StaticLinkRoute} from './navigator'
 const SmallEditIcon = (props: React.ComponentProps<typeof EditIcon>) => (
@@ -179,27 +181,33 @@ export function LinkInput(props: LinkInputProps) {
               onSelect={(selected) => {
                 if (props.readOnly) return
 
-                const key = props.value?._key || randomKey(12)
+                // Patch individual fields rather than replacing the whole object, so that
+                // custom `fields`, the array `_key` and concurrent edits are preserved.
+                const patches: FormPatch[] = [setIfMissing({_type: props.schemaType.name})]
 
-                props.onChange(
-                  set({
-                    _type: 'link',
-                    _key: key,
-                    label: selected?.label || null,
-                    ...(selected._id
-                      ? {
-                          reference: {
-                            _type: 'reference',
-                            _ref: selected._id,
-                            _weak: true,
-                          },
-                        }
-                      : {
-                          url: selected.href || null,
-                          reference: null,
-                        }),
-                  }),
-                )
+                if (selected.label) {
+                  patches.push(set(selected.label, ['label']))
+                }
+
+                if (selected._id) {
+                  patches.push(
+                    set(
+                      {
+                        _type: 'reference',
+                        // Search hits can be draft (`drafts.`) or release (`versions.`) ids;
+                        // references must always point at the published id.
+                        _ref: getPublishedId(selected._id),
+                        _weak: true,
+                      },
+                      ['reference'],
+                    ),
+                    unset(['url']),
+                  )
+                } else if (selected.href) {
+                  patches.push(set(selected.href, ['url']), unset(['reference']))
+                }
+
+                props.onChange(patches)
                 setSearchQuery('')
                 setPopoverOpen(false)
               }}
