@@ -1,5 +1,13 @@
-import React from 'react'
-import {set, InputProps, ObjectInputProps, type SchemaType, unset, useClient} from 'sanity'
+import React, {type ComponentType} from 'react'
+import {
+  type InputProps,
+  type ObjectInputProps,
+  type ObjectMember,
+  type SchemaType,
+  set,
+  unset,
+  useClient,
+} from 'sanity'
 import {Button, Text, Flex, Grid, useClickOutsideEvent, Box, Card} from '@sanity/ui'
 import {Popover} from '@sanity/ui/popover'
 import {Tooltip} from '@sanity/ui/tooltip'
@@ -32,6 +40,32 @@ function resolveRoutes(routes: RouteConfig): LinkRouteDefinition[] {
   }
 
   return Array.isArray(routes) ? routes : routes.routes
+}
+
+const BUILT_IN_FIELD_NAMES = new Set(['label', 'url', 'reference'])
+
+/** Field name a member belongs to, including `error` members for invalid field values. */
+function getMemberFieldName(member: ObjectMember): string | undefined {
+  if (member.kind === 'field') return member.name
+  if (member.kind === 'error') return member.fieldName
+  return undefined
+}
+
+function withInputComponent(member: ObjectMember, input: ComponentType<InputProps>): ObjectMember {
+  if (member.kind !== 'field') {
+    return member
+  }
+
+  return {
+    ...member,
+    field: {
+      ...member.field,
+      schemaType: {
+        ...member.field.schemaType,
+        components: {input},
+      },
+    },
+  } as ObjectMember
 }
 
 const LinkContext = createContext<{
@@ -76,41 +110,27 @@ export function LinkInput(props: LinkInputProps) {
   }, [linkReferenceTypes, props.schemaType])
 
   const labelField = useMemo(() => {
-    return props.members.filter((member: any) => member.name === 'label')
+    return props.members.filter((member) => getMemberFieldName(member) === 'label')
   }, [props.members])
 
   const referenceField = useMemo(() => {
     return props.members
-      .filter((member: any) => member.name === 'reference')
-      .map((member: any) => ({
-        ...member,
-        field: {
-          ...member.field,
-          schemaType: {
-            ...member.field.schemaType,
-            components: {
-              input: ReferencePreviewInput,
-            },
-          },
-        },
-      }))
+      .filter((member) => getMemberFieldName(member) === 'reference')
+      .map((member) => withInputComponent(member, ReferencePreviewInput))
   }, [props.members])
 
   const urlField = useMemo(() => {
     return props.members
-      .filter((member: any) => member.name === 'url')
-      .map((member: any) => ({
-        ...member,
-        field: {
-          ...member.field,
-          schemaType: {
-            ...member.field.schemaType,
-            components: {
-              input: URLInput,
-            },
-          },
-        },
-      }))
+      .filter((member) => getMemberFieldName(member) === 'url')
+      .map((member) => withInputComponent(member, URLInput))
+  }, [props.members])
+
+  // Fields added through `linkPicker(routes, {fields})`, plus any fieldsets/decorations.
+  const extraMembers = useMemo(() => {
+    return props.members.filter((member) => {
+      const fieldName = getMemberFieldName(member)
+      return !fieldName || !BUILT_IN_FIELD_NAMES.has(fieldName)
+    })
   }, [props.members])
 
   return (
@@ -209,6 +229,14 @@ export function LinkInput(props: LinkInputProps) {
                 members: urlField,
               })}
         </Box>
+        {extraMembers.length > 0 ? (
+          <Box gridColumn="full">
+            {props.renderDefault({
+              ...props,
+              members: extraMembers,
+            })}
+          </Box>
+        ) : null}
       </Grid>
     </LinkContext.Provider>
   )
