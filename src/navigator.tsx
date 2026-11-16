@@ -46,7 +46,13 @@ const SEARCH_DEBOUNCE_MS = 300
 const STICKY_ROW_BACKGROUND = 'var(--card-bg-color, var(--card-backdrop-color, canvas))'
 
 type LinkIcon = () => React.ReactNode
-type LinkIconInput = React.ElementType | React.ReactNode | string
+/**
+ * An icon for a route, group or document folder: a component (such as one from `@sanity/icons`),
+ * a React element, or a string such as an emoji.
+ *
+ * @public
+ */
+export type LinkIconInput = React.ElementType | React.ReactNode | string
 type SystemLinkType = 'internal' | 'external' | 'email' | 'phone'
 
 const defaultLinkTypeIcons: Record<SystemLinkType, LucideIcon> = {
@@ -89,6 +95,11 @@ type SearchDocument = {
   title?: string
 }
 
+/**
+ * A static path shown in the picker. Selecting it stores `path` in the link's `url`. Create with {@link route}.
+ *
+ * @public
+ */
 export type StaticLinkRoute = {
   type: 'route'
   title: string
@@ -96,6 +107,11 @@ export type StaticLinkRoute = {
   icon?: LinkIconInput
 }
 
+/**
+ * A labelled section of routes in the picker. Create with {@link group}.
+ *
+ * @public
+ */
 export type LinkRouteGroup = {
   type: 'group'
   title: string
@@ -103,6 +119,11 @@ export type LinkRouteGroup = {
   routes: LinkRouteDefinition[]
 }
 
+/**
+ * A browsable folder of documents of one type. Selecting a document stores a weak reference. Create with {@link documents}.
+ *
+ * @public
+ */
 export type LinkDocumentFolder = {
   type: 'documents'
   title: string
@@ -112,12 +133,27 @@ export type LinkDocumentFolder = {
   filterParams?: QueryParams
 }
 
+/**
+ * Any entry in the link picker menu.
+ *
+ * @public
+ */
 export type LinkRouteDefinition = StaticLinkRoute | LinkRouteGroup | LinkDocumentFolder
 
+/**
+ * A link picker menu, as returned by {@link defineLinkMenu}.
+ *
+ * @public
+ */
 export type LinksPluginProps = {
   routes: LinkRouteDefinition[]
 }
 
+/**
+ * Defines a link picker menu and warns in development about malformed routes (for example paths that don't start with `/`).
+ *
+ * @public
+ */
 export function defineLinkMenu(routes: LinkRouteDefinition[]): LinksPluginProps {
   const config = {routes}
   validateLinksConfig(config)
@@ -220,6 +256,14 @@ export function isInternalLinkHref(value: string | null | undefined) {
   return Boolean(value?.startsWith('/') || value?.startsWith('#') || value?.startsWith('?'))
 }
 
+/**
+ * Creates a static route.
+ *
+ * @param title - Label shown in the picker, and used as the link label when selected
+ * @param path - Stored in the link's `url` when selected
+ *
+ * @public
+ */
 export function route(
   title: string,
   path: string,
@@ -228,6 +272,14 @@ export function route(
   return {type: 'route', title, path, ...options}
 }
 
+/**
+ * Creates a labelled group of routes.
+ *
+ * @param title - Section heading shown in the picker
+ * @param routes - Routes, groups or document folders in the group
+ *
+ * @public
+ */
 export function group(
   title: string,
   routes: LinkRouteDefinition[],
@@ -241,6 +293,15 @@ export function group(
   }
 }
 
+/**
+ * Creates a folder of documents of one type. Document types used here must also be passed to
+ * `linkPicker()` so the link schema's `reference` field accepts them.
+ *
+ * @param title - Folder label shown in the picker
+ * @param documentType - The document type to list and search
+ *
+ * @public
+ */
 export function documents(
   title: string,
   documentType: string,

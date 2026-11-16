@@ -2,12 +2,22 @@ import type {BaseSchemaDefinition, ObjectInputProps, ObjectSchemaType, PreviewCo
 
 import type {LinkRouteDefinition, LinksPluginProps} from './navigator'
 
+/**
+ * The weak reference stored for document links.
+ *
+ * @public
+ */
 export type LinkReferenceValue = {
   _type: 'reference'
   _ref: string
   _weak?: boolean
 }
 
+/**
+ * The stored value of a `link` field.
+ *
+ * @public
+ */
 export type LinkValue = {
   _key?: string
   _type?: 'link'
@@ -18,10 +28,11 @@ export type LinkValue = {
 
 /**
  * Options for the link picker plugin (second argument to `linkPicker`).
+ *
+ * @public
  */
 export interface LinkFieldPluginOptions {
   /** Additional schema fields appended to the built-in link fields. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fields?: any[]
 
   icon?: BaseSchemaDefinition['icon']
@@ -31,6 +42,8 @@ export interface LinkFieldPluginOptions {
 
 /**
  * Options for an individual link field.
+ *
+ * @public
  */
 export interface LinkFieldOptions {
   /**
@@ -40,10 +53,20 @@ export interface LinkFieldOptions {
   routes?: LinkRouteDefinition[] | LinksPluginProps
 }
 
+/**
+ * The compiled schema type of a `link` field.
+ *
+ * @public
+ */
 export type LinkSchemaType = Omit<ObjectSchemaType, 'options'> & {
   options?: LinkFieldOptions
 }
 
+/**
+ * Props for the link field's input component.
+ *
+ * @public
+ */
 export type LinkInputProps = ObjectInputProps<LinkValue, LinkSchemaType> & {
   pluginOptions?: {
     routes?: LinkRouteDefinition[] | LinksPluginProps

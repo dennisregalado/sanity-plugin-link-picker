@@ -73,6 +73,8 @@ function resolveRoutes(
  *   },
  * )
  * ```
+ *
+ * @public
  */
 export function linkPicker(
   routes: LinkRouteDefinition[] = [],
@@ -158,6 +160,7 @@ export function linkPicker(
 export {defineLinkMenu, documents, group, route} from './navigator'
 export type {
   LinkDocumentFolder,
+  LinkIconInput,
   LinkRouteDefinition,
   LinkRouteGroup,
   LinksPluginProps,

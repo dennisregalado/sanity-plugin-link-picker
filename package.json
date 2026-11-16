@@ -66,8 +66,8 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "react": "^18 || ^19",
-    "sanity": "^6"
+    "react": "^19.2",
+    "sanity": "^6.10.0"
   },
   "browserslist": "extends @sanity/browserslist-config",
   "engines": {
