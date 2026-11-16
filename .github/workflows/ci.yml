@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, typecheck, test & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          cache: npm
+          # plugin-kit 10 needs Node >= 24 for development
+          node-version: lts/*
+      - run: npm clean-install
+      - run: npx oxfmt --check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # Runs plugin-kit verify-package and pkg-utils build --strict --check
+      - run: npm run build
