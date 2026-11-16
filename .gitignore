@@ -58,3 +58,8 @@ yalc.lock
 
 # Compiled plugin
 dist
+
+# Dev studio
+.sanity
+dev/.env*
+!dev/.env.example
