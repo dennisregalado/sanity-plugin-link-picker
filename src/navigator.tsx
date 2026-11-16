@@ -5,10 +5,8 @@
  * document folders drill into Sanity query results to select references.
  */
 
-import {
-  ChevronRightIcon,
-  ChevronLeftIcon,
-} from '@sanity/icons';
+import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
+import {ChevronLeftIcon} from '@sanity/icons/ChevronLeft'
 import {
   Box,
   Button,
