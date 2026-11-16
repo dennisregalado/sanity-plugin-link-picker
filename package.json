@@ -28,15 +28,15 @@
   "types": "./dist/index.d.ts",
   "browserslist": "extends @sanity/browserslist-config",
   "files": [
-    "dist",
-    "MIGRATION.md"
+    "dist"
   ],
   "scripts": {
     "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
     "format": "prettier --write --cache --ignore-unknown .",
     "link-watch": "plugin-kit link-watch",
     "lint": "eslint .",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run build",
+    "typecheck": "tsc --noEmit",
     "watch": "pkg-utils watch --strict"
   },
   "dependencies": {
