@@ -1,9 +1,5 @@
-import type {
-  BaseSchemaDefinition,
-  ObjectInputProps,
-  ObjectSchemaType,
-  PreviewConfig,
-} from 'sanity'
+import type {BaseSchemaDefinition, ObjectInputProps, ObjectSchemaType, PreviewConfig} from 'sanity'
+
 import type {LinkRouteDefinition, LinksPluginProps} from './navigator'
 
 export type LinkReferenceValue = {

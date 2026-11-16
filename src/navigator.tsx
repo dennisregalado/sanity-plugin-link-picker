@@ -5,17 +5,11 @@
  * document folders drill into Sanity query results to select references.
  */
 
-import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
 import {ChevronLeftIcon} from '@sanity/icons/ChevronLeft'
-import {
-  Box,
-  Button,
-  Flex,
-  Stack,
-  Text,
-} from '@sanity/ui';
-import { AtSignIcon, GlobeIcon, LinkIcon, PhoneIcon, type LucideIcon } from 'lucide-react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
+import {Box, Button, Flex, Stack, Text} from '@sanity/ui'
+import {useVirtualizer} from '@tanstack/react-virtual'
+import {AtSignIcon, GlobeIcon, LinkIcon, PhoneIcon, type LucideIcon} from 'lucide-react'
 import React, {
   useCallback,
   useEffect,
@@ -24,7 +18,7 @@ import React, {
   useState,
   createContext,
   useContext,
-} from 'react';
+} from 'react'
 import {
   SanityDefaultPreview,
   SearchResultItemPreview,
@@ -40,198 +34,190 @@ import {
   DEFAULT_STUDIO_CLIENT_OPTIONS,
   type QueryParams,
   type SchemaType,
-} from 'sanity';
+} from 'sanity'
 
-const DefaultIcon = () => <Text>✨</Text>;
-const NAVIGATOR_MAX_HEIGHT = 390;
-const ICON_SIZE = 16;
-const VIRTUAL_LIST_OVERSCAN = 5;
-const VIRTUAL_ROW_ESTIMATE_SIZE = 52;
-const SEARCH_PAGE_SIZE = 25;
-const SEARCH_DEBOUNCE_MS = 300;
-const STICKY_ROW_BACKGROUND =
-  'var(--card-bg-color, var(--card-backdrop-color, canvas))';
+const DefaultIcon = () => <Text>✨</Text>
+const NAVIGATOR_MAX_HEIGHT = 390
+const ICON_SIZE = 16
+const VIRTUAL_LIST_OVERSCAN = 5
+const VIRTUAL_ROW_ESTIMATE_SIZE = 52
+const SEARCH_PAGE_SIZE = 25
+const SEARCH_DEBOUNCE_MS = 300
+const STICKY_ROW_BACKGROUND = 'var(--card-bg-color, var(--card-backdrop-color, canvas))'
 
-type LinkIcon = () => React.ReactNode;
-type LinkIconInput = React.ElementType | React.ReactNode | string;
-type SystemLinkType = 'internal' | 'external' | 'email' | 'phone';
+type LinkIcon = () => React.ReactNode
+type LinkIconInput = React.ElementType | React.ReactNode | string
+type SystemLinkType = 'internal' | 'external' | 'email' | 'phone'
 
 const defaultLinkTypeIcons: Record<SystemLinkType, LucideIcon> = {
   internal: LinkIcon,
   external: GlobeIcon,
   email: AtSignIcon,
   phone: PhoneIcon,
-};
+}
 
 type FolderRow =
-  | { type: 'back' }
-  | { type: 'document'; document: SearchDocument }
-  | { type: 'empty' }
-  | { type: 'skeleton'; index: number };
+  | {type: 'back'}
+  | {type: 'document'; document: SearchDocument}
+  | {type: 'empty'}
+  | {type: 'skeleton'; index: number}
 
 type SearchRow =
-  | { type: 'header'; label: string }
-  | { type: 'result'; item: SearchResultItem }
-  | { type: 'empty' }
-  | { type: 'skeleton'; index: number };
+  | {type: 'header'; label: string}
+  | {type: 'result'; item: SearchResultItem}
+  | {type: 'empty'}
+  | {type: 'skeleton'; index: number}
 
 type SearchResultItem =
   | {
-    type: 'document';
-    document: SearchDocument;
-  }
+      type: 'document'
+      document: SearchDocument
+    }
   | {
-    type: 'link' | 'route';
-    label?: string;
-    title?: string;
-    href: string;
-    icon?: () => React.ReactNode;
-  };
+      type: 'link' | 'route'
+      label?: string
+      title?: string
+      href: string
+      icon?: () => React.ReactNode
+    }
 
 type SearchDocument = {
-  _id: string;
-  _type: string;
-  _originalId?: string;
-  label?: string;
-  title?: string;
-};
-
-export type StaticLinkRoute = {
-  type: 'route';
-  title: string;
-  path: string;
-  icon?: LinkIconInput;
-};
-
-export type LinkRouteGroup = {
-  type: 'group';
-  title: string;
-  icon?: LinkIconInput;
-  routes: LinkRouteDefinition[];
-};
-
-export type LinkDocumentFolder = {
-  type: 'documents';
-  title: string;
-  documentType: string;
-  icon?: LinkIconInput;
-  filter?: string;
-  filterParams?: QueryParams;
-};
-
-export type LinkRouteDefinition =
-  | StaticLinkRoute
-  | LinkRouteGroup
-  | LinkDocumentFolder;
-
-export type LinksPluginProps = {
-  routes: LinkRouteDefinition[];
-};
-
-export function defineLinkMenu(routes: LinkRouteDefinition[]): LinksPluginProps {
-  const config = { routes };
-  validateLinksConfig(config);
-  return config;
+  _id: string
+  _type: string
+  _originalId?: string
+  label?: string
+  title?: string
 }
 
-export function getFlattenedLinkRoutes(
-  routes: LinkRouteDefinition[],
-): StaticLinkRoute[] {
-  const result: StaticLinkRoute[] = [];
+export type StaticLinkRoute = {
+  type: 'route'
+  title: string
+  path: string
+  icon?: LinkIconInput
+}
+
+export type LinkRouteGroup = {
+  type: 'group'
+  title: string
+  icon?: LinkIconInput
+  routes: LinkRouteDefinition[]
+}
+
+export type LinkDocumentFolder = {
+  type: 'documents'
+  title: string
+  documentType: string
+  icon?: LinkIconInput
+  filter?: string
+  filterParams?: QueryParams
+}
+
+export type LinkRouteDefinition = StaticLinkRoute | LinkRouteGroup | LinkDocumentFolder
+
+export type LinksPluginProps = {
+  routes: LinkRouteDefinition[]
+}
+
+export function defineLinkMenu(routes: LinkRouteDefinition[]): LinksPluginProps {
+  const config = {routes}
+  validateLinksConfig(config)
+  return config
+}
+
+export function getFlattenedLinkRoutes(routes: LinkRouteDefinition[]): StaticLinkRoute[] {
+  const result: StaticLinkRoute[] = []
 
   for (const route of routes) {
     if (route.type === 'group') {
-      result.push(...getFlattenedLinkRoutes(route.routes));
+      result.push(...getFlattenedLinkRoutes(route.routes))
     } else if (route.type === 'route') {
-      result.push(route);
+      result.push(route)
     }
   }
 
-  return result;
+  return result
 }
 
-export function getReferenceTypesFromRoutes(
-  routes: LinkRouteDefinition[],
-): string[] {
-  const documentTypes = new Set<string>();
+export function getReferenceTypesFromRoutes(routes: LinkRouteDefinition[]): string[] {
+  const documentTypes = new Set<string>()
 
   for (const route of routes) {
     if (route.type === 'group') {
       for (const type of getReferenceTypesFromRoutes(route.routes)) {
-        documentTypes.add(type);
+        documentTypes.add(type)
       }
     }
 
     if (route.type === 'documents') {
-      documentTypes.add(route.documentType);
+      documentTypes.add(route.documentType)
     }
   }
 
-  return Array.from(documentTypes);
+  return Array.from(documentTypes)
 }
 
 export function getReferenceTypesFromSchemaType(
   schemaType: unknown,
   fieldName = 'reference',
 ): string[] {
-  const fields = (schemaType as any)?.fields;
+  const fields = (schemaType as any)?.fields
   const referenceField = Array.isArray(fields)
     ? fields.find((field) => field?.name === fieldName)
-    : undefined;
-  const to = referenceField?.type?.to || referenceField?.to;
+    : undefined
+  const to = referenceField?.type?.to || referenceField?.to
 
   if (!Array.isArray(to)) {
-    return [];
+    return []
   }
 
   return to
     .map((target) => target?.name || target?.type)
-    .filter((type): type is string => typeof type === 'string');
+    .filter((type): type is string => typeof type === 'string')
 }
 
 export function normalizeLinkHref(value: string | null | undefined): string | null {
-  const input = value?.trim();
+  const input = value?.trim()
 
   if (!input) {
-    return null;
+    return null
   }
 
   if (input.startsWith('/') || input.startsWith('#') || input.startsWith('?')) {
-    return input;
+    return input
   }
 
   if (/^mailto:/i.test(input)) {
-    const email = input.slice('mailto:'.length).trim();
-    return isEmailAddress(email) ? `mailto:${email}` : null;
+    const email = input.slice('mailto:'.length).trim()
+    return isEmailAddress(email) ? `mailto:${email}` : null
   }
 
   if (isEmailAddress(input)) {
-    return `mailto:${input}`;
+    return `mailto:${input}`
   }
 
   if (/^tel:/i.test(input)) {
-    const phone = normalizePhoneNumber(input.slice('tel:'.length));
-    return phone ? `tel:${phone}` : null;
+    const phone = normalizePhoneNumber(input.slice('tel:'.length))
+    return phone ? `tel:${phone}` : null
   }
 
-  const phone = normalizePhoneNumber(input);
+  const phone = normalizePhoneNumber(input)
   if (phone) {
-    return `tel:${phone}`;
+    return `tel:${phone}`
   }
 
   if (/^https?:\/\//i.test(input)) {
-    return isAbsoluteUrl(input) ? input : null;
+    return isAbsoluteUrl(input) ? input : null
   }
 
   if (looksLikeDomain(input)) {
-    return `https://${input}`;
+    return `https://${input}`
   }
 
-  return null;
+  return null
 }
 
 export function isInternalLinkHref(value: string | null | undefined) {
-  return Boolean(value?.startsWith('/') || value?.startsWith('#') || value?.startsWith('?'));
+  return Boolean(value?.startsWith('/') || value?.startsWith('#') || value?.startsWith('?'))
 }
 
 export function route(
@@ -271,36 +257,36 @@ export function documents(
 // Type definitions
 type NavigatorProps = {
   onSelect?: (item: {
-    label?: string;
-    href?: string;
-    reference?: string;
-    _type?: string;
-    _id?: string;
-  }) => void;
-  onClose?: () => void;
-  routes?: LinkRouteDefinition[];
-  referenceTypes?: string[];
-  searchQuery?: string;
-};
+    label?: string
+    href?: string
+    reference?: string
+    _type?: string
+    _id?: string
+  }) => void
+  onClose?: () => void
+  routes?: LinkRouteDefinition[]
+  referenceTypes?: string[]
+  searchQuery?: string
+}
 
 type MenuItem = {
-  label?: string; // Display name in UI
-  href?: string; // Navigation URL for 'page' type items
-  type?: string; // 'page' | 'folder' | 'group'
-  icon?: () => React.ReactNode; // Icon component (emoji-based)
-  children?: MenuItem[]; // Nested items for 'group' type  
-  omitLabelOnSelect?: boolean;
-  documentType?: string;
-  filter?: string;
-  filterParams?: QueryParams;
-};
+  label?: string // Display name in UI
+  href?: string // Navigation URL for 'page' type items
+  type?: string // 'page' | 'folder' | 'group'
+  icon?: () => React.ReactNode // Icon component (emoji-based)
+  children?: MenuItem[] // Nested items for 'group' type
+  omitLabelOnSelect?: boolean
+  documentType?: string
+  filter?: string
+  filterParams?: QueryParams
+}
 
 function NormalizedLinkIcon({
   children,
   shift = false,
 }: {
-  children: React.ReactNode;
-  shift?: boolean;
+  children: React.ReactNode
+  shift?: boolean
 }) {
   return (
     <span
@@ -327,7 +313,7 @@ function NormalizedLinkIcon({
         {children}
       </span>
     </span>
-  );
+  )
 }
 
 export function normalizeLinkIcon(
@@ -335,7 +321,7 @@ export function normalizeLinkIcon(
   options?: {shift?: boolean},
 ): LinkIcon | undefined {
   if (!icon) {
-    return undefined;
+    return undefined
   }
 
   if (typeof icon === 'function' || isReactComponentObject(icon)) {
@@ -343,90 +329,86 @@ export function normalizeLinkIcon(
       <NormalizedLinkIcon shift={options?.shift}>
         {React.createElement(icon as React.ElementType)}
       </NormalizedLinkIcon>
-    );
+    )
   }
 
-  return () =>
-    (
-      <NormalizedLinkIcon shift={options?.shift}>
-        {typeof icon === 'string' ? <Text>{icon}</Text> : (icon as React.ReactNode)}
-      </NormalizedLinkIcon>
-    );
+  return () => (
+    <NormalizedLinkIcon shift={options?.shift}>
+      {typeof icon === 'string' ? <Text>{icon}</Text> : (icon as React.ReactNode)}
+    </NormalizedLinkIcon>
+  )
 }
 
 function isReactComponentObject(icon: unknown): icon is React.ElementType {
   return Boolean(
-    icon
-    && typeof icon === 'object'
-    && '$$typeof' in icon
-    && !React.isValidElement(icon),
-  );
+    icon && typeof icon === 'object' && '$$typeof' in icon && !React.isValidElement(icon),
+  )
 }
 
 function getSystemLinkType(href: string): SystemLinkType {
   if (href.startsWith('mailto:')) {
-    return 'email';
+    return 'email'
   }
 
   if (href.startsWith('tel:')) {
-    return 'phone';
+    return 'phone'
   }
 
-  return isInternalLinkHref(href) ? 'internal' : 'external';
+  return isInternalLinkHref(href) ? 'internal' : 'external'
 }
 
 export function getSystemLinkIcon(href: string, options?: {shift?: boolean}): LinkIcon {
-  const Icon = defaultLinkTypeIcons[getSystemLinkType(href)];
+  const Icon = defaultLinkTypeIcons[getSystemLinkType(href)]
 
   return () => (
     <NormalizedLinkIcon shift={options?.shift}>
       <Icon size={ICON_SIZE} />
     </NormalizedLinkIcon>
-  );
+  )
 }
 
 function isEmailAddress(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 function normalizePhoneNumber(value: string) {
-  const trimmed = value.trim();
+  const trimmed = value.trim()
 
   if (!/^\+?[\d\s().-]+$/.test(trimmed)) {
-    return null;
+    return null
   }
 
-  const digits = trimmed.replace(/\D/g, '');
+  const digits = trimmed.replace(/\D/g, '')
 
   if (digits.length < (trimmed.startsWith('+') ? 7 : 10)) {
-    return null;
+    return null
   }
 
-  return `${trimmed.startsWith('+') ? '+' : ''}${digits}`;
+  return `${trimmed.startsWith('+') ? '+' : ''}${digits}`
 }
 
 function isAbsoluteUrl(value: string) {
   try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
-    return false;
+    return false
   }
 }
 
 function looksLikeDomain(value: string) {
   if (/\s/.test(value) || value.includes('@')) {
-    return false;
+    return false
   }
 
-  return /^(?:[a-z0-9-]+\.)+[a-z]{2,63}(?::\d+)?(?:[/?#].*)?$/i.test(value);
+  return /^(?:[a-z0-9-]+\.)+[a-z]{2,63}(?::\d+)?(?:[/?#].*)?$/i.test(value)
 }
 
 function getTypedLinkResult(query: string): SearchResultItem | null {
-  const href = normalizeLinkHref(query);
+  const href = normalizeLinkHref(query)
 
   if (!href || href === query) {
-    return null;
+    return null
   }
 
   return {
@@ -435,7 +417,7 @@ function getTypedLinkResult(query: string): SearchResultItem | null {
     icon: getSystemLinkIcon(href),
     label: href,
     title: href,
-  };
+  }
 }
 
 function applyReferenceTypes(
@@ -443,7 +425,7 @@ function applyReferenceTypes(
   referenceTypes?: string[],
 ): LinkRouteDefinition[] {
   if (!referenceTypes?.length) {
-    return routes;
+    return routes
   }
 
   return routes
@@ -452,48 +434,48 @@ function applyReferenceTypes(
         return {
           ...route,
           routes: applyReferenceTypes(route.routes, referenceTypes),
-        };
+        }
       }
 
-      return route;
+      return route
     })
     .filter((route) => {
       if (route.type !== 'documents') {
-        return true;
+        return true
       }
 
-      return referenceTypes.includes(route.documentType);
-    });
+      return referenceTypes.includes(route.documentType)
+    })
 }
 
 function validateLinksConfig(config: LinksPluginProps) {
-  const nodeEnv = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV;
+  const nodeEnv = (globalThis as {process?: {env?: {NODE_ENV?: string}}}).process?.env?.NODE_ENV
   if (nodeEnv === 'production') {
-    return;
+    return
   }
 
   for (const warning of getLinkConfigWarnings(config.routes)) {
-    console.warn(`[sanity-plugin-link-picker] ${warning}`);
+    console.warn(`[sanity-plugin-link-picker] ${warning}`)
   }
 }
 
 function getLinkConfigWarnings(routes: LinkRouteDefinition[], path: string[] = []): string[] {
-  const warnings: string[] = [];
+  const warnings: string[] = []
 
   for (const route of routes) {
-    const label = route.title;
-    const nextPath = [...path, label];
+    const label = route.title
+    const nextPath = [...path, label]
 
     if (route.type === 'route' && !route.path.startsWith('/')) {
-      warnings.push(`${nextPath.join(' > ')} path should start with "/".`);
+      warnings.push(`${nextPath.join(' > ')} path should start with "/".`)
     }
 
     if (route.type === 'group') {
-      warnings.push(...getLinkConfigWarnings(route.routes, nextPath));
+      warnings.push(...getLinkConfigWarnings(route.routes, nextPath))
     }
   }
 
-  return warnings;
+  return warnings
 }
 
 function normalizeRoutes(routes: LinkRouteDefinition[]): MenuItem[] {
@@ -505,14 +487,14 @@ function normalizeRoutes(routes: LinkRouteDefinition[]): MenuItem[] {
           href: route.path,
           type: 'page',
           icon: normalizeLinkIcon(route.icon),
-        };
+        }
       case 'group':
         return {
           label: route.title,
           type: 'group',
           icon: normalizeLinkIcon(route.icon),
           children: normalizeRoutes(route.routes),
-        };
+        }
       case 'documents':
         return {
           label: route.title,
@@ -521,11 +503,11 @@ function normalizeRoutes(routes: LinkRouteDefinition[]): MenuItem[] {
           documentType: route.documentType,
           filter: route.filter,
           filterParams: route.filterParams,
-        };
+        }
       default:
-        throw new Error(`Unsupported link route: ${JSON.stringify(route)}`);
+        throw new Error(`Unsupported link route: ${JSON.stringify(route)}`)
     }
-  });
+  })
 }
 
 /**
@@ -541,27 +523,27 @@ function normalizeRoutes(routes: LinkRouteDefinition[]): MenuItem[] {
  * - Back: popFolder() removes last item, goes up one level
  */
 type NavigationContextType = {
-  navigationStack: MenuItem[]; // Array of navigation history
-  pushFolder: (folder: MenuItem) => void; // Navigate into a folder
-  popFolder: () => void; // Go back one level
+  navigationStack: MenuItem[] // Array of navigation history
+  pushFolder: (folder: MenuItem) => void // Navigate into a folder
+  popFolder: () => void // Go back one level
   onSelect?: (item: {
-    label?: string;
-    href?: string;
-    reference?: string;
-    _type?: string;
-    _id?: string;
-  }) => void;
-  onClose?: () => void;
-};
+    label?: string
+    href?: string
+    reference?: string
+    _type?: string
+    _id?: string
+  }) => void
+  onClose?: () => void
+}
 
-const NavigationContext = createContext<NavigationContextType | null>(null);
+const NavigationContext = createContext<NavigationContextType | null>(null)
 
 function useNavigation() {
-  const context = useContext(NavigationContext);
+  const context = useContext(NavigationContext)
   if (!context) {
-    throw new Error('useNavigation must be used within NavigationProvider');
+    throw new Error('useNavigation must be used within NavigationProvider')
   }
-  return context;
+  return context
 }
 
 function NavigationProvider({
@@ -569,33 +551,31 @@ function NavigationProvider({
   onClose,
   onSelect,
 }: {
-  children: React.ReactNode;
-  onClose?: () => void;
+  children: React.ReactNode
+  onClose?: () => void
   onSelect?: (item: {
-    label?: string;
-    href?: string;
-    reference?: string;
-    _type?: string;
-    _id?: string;
-  }) => void;
+    label?: string
+    href?: string
+    reference?: string
+    _type?: string
+    _id?: string
+  }) => void
 }) {
-  const [navigationStack, setNavigationStack] = useState<MenuItem[]>([]);
+  const [navigationStack, setNavigationStack] = useState<MenuItem[]>([])
 
   const pushFolder = (folder: MenuItem) => {
-    setNavigationStack((prev) => [...prev, folder]);
-  };
+    setNavigationStack((prev) => [...prev, folder])
+  }
 
   const popFolder = () => {
-    setNavigationStack((prev) => prev.slice(0, -1));
-  };
+    setNavigationStack((prev) => prev.slice(0, -1))
+  }
 
   return (
-    <NavigationContext.Provider
-      value={{ navigationStack, pushFolder, popFolder, onSelect, onClose }}
-    >
+    <NavigationContext.Provider value={{navigationStack, pushFolder, popFolder, onSelect, onClose}}>
       {children}
     </NavigationContext.Provider>
-  );
+  )
 }
 
 export function VisualEditorNavigator({
@@ -605,23 +585,13 @@ export function VisualEditorNavigator({
   referenceTypes,
   searchQuery,
 }: NavigatorProps) {
-
   const filteredRoutes = useMemo(
     () => applyReferenceTypes(routes || [], referenceTypes),
     [routes, referenceTypes],
-  );
-  const menuItems = useMemo(
-    () => normalizeRoutes(filteredRoutes),
-    [filteredRoutes],
-  );
-  const documentTypes = useMemo(
-    () => getReferenceTypesFromRoutes(filteredRoutes),
-    [filteredRoutes],
-  );
-  const staticRoutes = useMemo(
-    () => getFlattenedLinkRoutes(filteredRoutes),
-    [filteredRoutes],
-  );
+  )
+  const menuItems = useMemo(() => normalizeRoutes(filteredRoutes), [filteredRoutes])
+  const documentTypes = useMemo(() => getReferenceTypesFromRoutes(filteredRoutes), [filteredRoutes])
+  const staticRoutes = useMemo(() => getFlattenedLinkRoutes(filteredRoutes), [filteredRoutes])
 
   return (
     <NavigationProvider onClose={onClose} onSelect={onSelect}>
@@ -632,7 +602,7 @@ export function VisualEditorNavigator({
         staticRoutes={staticRoutes}
       />
     </NavigationProvider>
-  );
+  )
 }
 
 function NavigatorContent({
@@ -641,14 +611,14 @@ function NavigatorContent({
   searchQuery,
   staticRoutes,
 }: {
-  documentTypes: string[];
-  menuItems: MenuItem[];
-  searchQuery?: string;
-  staticRoutes: StaticLinkRoute[];
+  documentTypes: string[]
+  menuItems: MenuItem[]
+  searchQuery?: string
+  staticRoutes: StaticLinkRoute[]
 }) {
-  const { navigationStack } = useNavigation();
-  const currentFolder = navigationStack[navigationStack.length - 1];
-  const trimmedSearchQuery = searchQuery?.trim() || '';
+  const {navigationStack} = useNavigation()
+  const currentFolder = navigationStack[navigationStack.length - 1]
+  const trimmedSearchQuery = searchQuery?.trim() || ''
 
   return (
     <div
@@ -670,49 +640,42 @@ function NavigatorContent({
         <PageMenu menuItems={propMenuItems} />
       )}
     </div>
-  );
+  )
 }
 
 type DocumentSearchOptions = {
-  debounceMs?: number;
-  filter?: string;
-  filterParams?: QueryParams;
+  debounceMs?: number
+  filter?: string
+  filterParams?: QueryParams
   /** Empty query + skip scoring = Studio document-list browse mode */
-  mode?: 'search' | 'browse';
-};
+  mode?: 'search' | 'browse'
+}
 
 function useDocumentSearch(
   query: string,
   documentTypes: string[],
   options: DocumentSearchOptions = {},
 ) {
-  const {
-    debounceMs = SEARCH_DEBOUNCE_MS,
-    filter,
-    filterParams,
-    mode = 'search',
-  } = options;
-  const allowEmptyQuery = mode === 'browse';
-  const client = useClient(DEFAULT_STUDIO_CLIENT_OPTIONS);
-  const schema = useSchema();
-  const maxFieldDepth = useSearchMaxFieldDepth();
-  const {search: searchConfig} = useWorkspace();
-  const strategy = searchConfig?.strategy || 'groq2024';
+  const {debounceMs = SEARCH_DEBOUNCE_MS, filter, filterParams, mode = 'search'} = options
+  const allowEmptyQuery = mode === 'browse'
+  const client = useClient(DEFAULT_STUDIO_CLIENT_OPTIONS)
+  const schema = useSchema()
+  const maxFieldDepth = useSearchMaxFieldDepth()
+  const {search: searchConfig} = useWorkspace()
+  const strategy = searchConfig?.strategy || 'groq2024'
 
   const searchableTypes = useMemo(() => {
     if (documentTypes.length === 0) {
-      return [];
+      return []
     }
 
-    const allowed = new Set(documentTypes);
-    return getSearchableTypes(schema, documentTypes).filter((type) =>
-      allowed.has(type.name),
-    );
-  }, [documentTypes, schema]);
+    const allowed = new Set(documentTypes)
+    return getSearchableTypes(schema, documentTypes).filter((type) => allowed.has(type.name))
+  }, [documentTypes, schema])
 
   const search = useMemo(() => {
     if (searchableTypes.length === 0) {
-      return null;
+      return null
     }
 
     return createSearch(searchableTypes, client, {
@@ -721,18 +684,18 @@ function useDocumentSearch(
       strategy,
       maxDepth: maxFieldDepth,
       ...(filter ? {filter, params: filterParams} : {}),
-    });
-  }, [client, filter, filterParams, maxFieldDepth, searchableTypes, strategy]);
+    })
+  }, [client, filter, filterParams, maxFieldDepth, searchableTypes, strategy])
 
-  const [hits, setHits] = useState<SearchDocument[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
-  const requestIdRef = useRef(0);
-  const loadingMoreRef = useRef(false);
-  const loadMoreSubscriptionRef = useRef<{unsubscribe: () => void} | null>(null);
+  const [hits, setHits] = useState<SearchDocument[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | undefined>()
+  const requestIdRef = useRef(0)
+  const loadingMoreRef = useRef(false)
+  const loadMoreSubscriptionRef = useRef<{unsubscribe: () => void} | null>(null)
 
-  const canSearch = Boolean(search && (allowEmptyQuery || query));
+  const canSearch = Boolean(search && (allowEmptyQuery || query))
 
   const searchOptions = useMemo(
     () => ({
@@ -751,7 +714,7 @@ function useDocumentSearch(
         : {}),
     }),
     [allowEmptyQuery],
-  );
+  )
 
   const searchTerms = useMemo(
     () => ({
@@ -759,113 +722,107 @@ function useDocumentSearch(
       types: searchableTypes,
     }),
     [allowEmptyQuery, query, searchableTypes],
-  );
+  )
 
   useEffect(() => {
-    loadMoreSubscriptionRef.current?.unsubscribe();
-    loadMoreSubscriptionRef.current = null;
+    loadMoreSubscriptionRef.current?.unsubscribe()
+    loadMoreSubscriptionRef.current = null
 
     if (!canSearch) {
-      requestIdRef.current += 1;
-      setHits([]);
-      setNextCursor(undefined);
-      setLoading(false);
-      setLoadingMore(false);
-      loadingMoreRef.current = false;
-      return;
+      requestIdRef.current += 1
+      setHits([])
+      setNextCursor(undefined)
+      setLoading(false)
+      setLoadingMore(false)
+      loadingMoreRef.current = false
+      return
     }
 
-    const requestId = ++requestIdRef.current;
-    setLoading(true);
-    setLoadingMore(false);
-    loadingMoreRef.current = false;
-    setNextCursor(undefined);
+    const requestId = ++requestIdRef.current
+    setLoading(true)
+    setLoadingMore(false)
+    loadingMoreRef.current = false
+    setNextCursor(undefined)
 
-    let subscription: {unsubscribe: () => void} | undefined;
+    let subscription: {unsubscribe: () => void} | undefined
     const run = () => {
       subscription = search!(searchTerms, searchOptions).subscribe({
         next: (result) => {
           if (requestId !== requestIdRef.current) {
-            return;
+            return
           }
 
-          setHits(
-            removeDupes(result.hits.map(({hit}) => hit)) as SearchDocument[],
-          );
-          setNextCursor(result.nextCursor);
-          setLoading(false);
+          setHits(removeDupes(result.hits.map(({hit}) => hit)) as SearchDocument[])
+          setNextCursor(result.nextCursor)
+          setLoading(false)
         },
         error: () => {
           if (requestId !== requestIdRef.current) {
-            return;
+            return
           }
 
-          setHits([]);
-          setNextCursor(undefined);
-          setLoading(false);
+          setHits([])
+          setNextCursor(undefined)
+          setLoading(false)
         },
-      });
-    };
+      })
+    }
 
-    const timer =
-      debounceMs > 0 ? window.setTimeout(run, debounceMs) : (run(), undefined);
+    const timer = debounceMs > 0 ? window.setTimeout(run, debounceMs) : (run(), undefined)
 
     return () => {
       if (timer !== undefined) {
-        window.clearTimeout(timer);
+        window.clearTimeout(timer)
       }
-      subscription?.unsubscribe();
-    };
-  }, [canSearch, debounceMs, search, searchOptions, searchTerms]);
+      subscription?.unsubscribe()
+    }
+  }, [canSearch, debounceMs, search, searchOptions, searchTerms])
 
   useEffect(() => {
     return () => {
-      loadMoreSubscriptionRef.current?.unsubscribe();
-      loadMoreSubscriptionRef.current = null;
-    };
-  }, []);
+      loadMoreSubscriptionRef.current?.unsubscribe()
+      loadMoreSubscriptionRef.current = null
+    }
+  }, [])
 
   const loadMore = useCallback(() => {
     if (!search || !canSearch || !nextCursor || loading || loadingMoreRef.current) {
-      return;
+      return
     }
 
-    const requestId = requestIdRef.current;
-    const cursor = nextCursor;
-    loadingMoreRef.current = true;
-    setLoadingMore(true);
+    const requestId = requestIdRef.current
+    const cursor = nextCursor
+    loadingMoreRef.current = true
+    setLoadingMore(true)
 
-    loadMoreSubscriptionRef.current?.unsubscribe();
+    loadMoreSubscriptionRef.current?.unsubscribe()
     loadMoreSubscriptionRef.current = search(searchTerms, {
       ...searchOptions,
       cursor,
     }).subscribe({
       next: (result) => {
         if (requestId !== requestIdRef.current) {
-          return;
+          return
         }
 
         setHits(
           (previous) =>
-            removeDupes([
-              ...previous,
-              ...result.hits.map(({hit}) => hit),
-            ]) as SearchDocument[],
-        );
-        setNextCursor(result.nextCursor);
-        loadingMoreRef.current = false;
-        setLoadingMore(false);
+            removeDupes([...previous, ...result.hits.map(({hit}) => hit)]) as SearchDocument[],
+        )
+        setNextCursor(result.nextCursor)
+        loadingMoreRef.current = false
+        setLoadingMore(false)
       },
       error: () => {
         if (requestId !== requestIdRef.current) {
-          return;
+          return
         }
 
-        loadingMoreRef.current = false;
-        setLoadingMore(false);
+        loadingMoreRef.current = false
+        setLoadingMore(false)
       },
-    });
-  }, [canSearch, loading, nextCursor, search, searchOptions, searchTerms]);
+    })
+  }, [canSearch, loading, nextCursor, search, searchOptions, searchTerms])
 
   return {
     hits,
@@ -873,7 +830,7 @@ function useDocumentSearch(
     loadingMore,
     hasNextPage: Boolean(nextCursor),
     loadMore,
-  };
+  }
 }
 
 function SearchResults({
@@ -881,33 +838,34 @@ function SearchResults({
   query,
   staticRoutes,
 }: {
-  documentTypes: string[];
-  query: string;
-  staticRoutes: StaticLinkRoute[];
+  documentTypes: string[]
+  query: string
+  staticRoutes: StaticLinkRoute[]
 }) {
-  const perspective = usePerspective();
-  const typedLinkResult = useMemo(() => getTypedLinkResult(query), [query]);
+  const perspective = usePerspective()
+  const typedLinkResult = useMemo(() => getTypedLinkResult(query), [query])
   const staticResults = useMemo(
-    () => staticRoutes
-      .filter((route) =>
-        `${route.title} ${route.path}`.toLowerCase().includes(query.toLowerCase()),
-      )
-      .map<SearchResultItem>((route) => ({
-        type: 'route',
-        href: route.path,
-        icon: normalizeLinkIcon(route.icon),
-        label: route.title,
-        title: route.title,
-      })),
+    () =>
+      staticRoutes
+        .filter((route) =>
+          `${route.title} ${route.path}`.toLowerCase().includes(query.toLowerCase()),
+        )
+        .map<SearchResultItem>((route) => ({
+          type: 'route',
+          href: route.path,
+          icon: normalizeLinkIcon(route.icon),
+          label: route.title,
+          title: route.title,
+        })),
     [query, staticRoutes],
-  );
+  )
   const {
     hits: documentResults,
     loading,
     loadingMore,
     hasNextPage,
     loadMore,
-  } = useDocumentSearch(query, documentTypes);
+  } = useDocumentSearch(query, documentTypes)
   const results = useMemo(
     () => [
       ...(typedLinkResult ? [typedLinkResult] : []),
@@ -918,52 +876,50 @@ function SearchResults({
       })),
     ],
     [documentResults, staticResults, typedLinkResult],
-  );
+  )
   const resultLabel = loading
     ? 'Searching...'
-    : `${results.length}${hasNextPage ? '+' : ''} ${results.length === 1 ? 'result' : 'results'}`;
+    : `${results.length}${hasNextPage ? '+' : ''} ${results.length === 1 ? 'result' : 'results'}`
   const rows = useMemo<SearchRow[]>(() => {
     const headerRow: SearchRow = {
       type: 'header',
       label: resultLabel,
-    };
+    }
 
     if (loading && results.length === 0) {
       return [
         headerRow,
-        ...Array.from({ length: 10 }, (_, index) => ({
+        ...Array.from({length: 10}, (_, index) => ({
           type: 'skeleton' as const,
           index,
         })),
-      ];
+      ]
     }
 
     if (results.length === 0) {
-      return [headerRow, { type: 'empty' }];
+      return [headerRow, {type: 'empty'}]
     }
 
     return [
       headerRow,
-      ...results.map((item) => ({ type: 'result' as const, item })),
+      ...results.map((item) => ({type: 'result' as const, item})),
       ...(loadingMore
-        ? Array.from({ length: 3 }, (_, index) => ({
+        ? Array.from({length: 3}, (_, index) => ({
             type: 'skeleton' as const,
             index: results.length + index,
           }))
         : []),
-    ];
-  }, [loading, loadingMore, resultLabel, results]);
+    ]
+  }, [loading, loadingMore, resultLabel, results])
 
   return (
     <Flex gap={1} justify="flex-start" direction="column">
       <ScrollableList
         getKey={(row, index) => {
-          if (row.type === 'header') return 'header';
-          if (row.type === 'empty') return 'empty';
-          if (row.type === 'skeleton') return `skeleton-${row.index}`;
-          return row.item.type === 'document'
-            ? row.item.document._id
-            : row.item.href || index;
+          if (row.type === 'header') return 'header'
+          if (row.type === 'empty') return 'empty'
+          if (row.type === 'skeleton') return `skeleton-${row.index}`
+          return row.item.type === 'document' ? row.item.document._id : row.item.href || index
         }}
         items={rows}
         maxHeight={NAVIGATOR_MAX_HEIGHT}
@@ -973,45 +929,41 @@ function SearchResults({
           if (row.type === 'header') {
             return (
               <Box paddingX={2} paddingY={3}>
-                <Flex align="center" justify="space-between" style={{ width: '100%' }}>
+                <Flex align="center" justify="space-between" style={{width: '100%'}}>
                   <Text size={1} weight="medium">
                     {row.label}
                   </Text>
                 </Flex>
               </Box>
-            );
+            )
           }
 
           if (row.type === 'skeleton') {
-            return <SkeletonItem />;
+            return <SkeletonItem />
           }
 
           if (row.type === 'empty') {
-            return <EmptyFolderState />;
+            return <EmptyFolderState />
           }
 
-          return <SearchResult item={row.item} perspectiveStack={perspective.perspectiveStack} />;
+          return <SearchResult item={row.item} perspectiveStack={perspective.perspectiveStack} />
         }}
       />
     </Flex>
-  );
+  )
 }
 
 function SearchResult({
   item,
   perspectiveStack,
 }: {
-  item: SearchResultItem;
-  perspectiveStack?: string[];
+  item: SearchResultItem
+  perspectiveStack?: string[]
 }) {
   if (item.type === 'document') {
     return (
-      <DocumentItem
-        icon={DefaultIcon}
-        item={item.document}
-        perspectiveStack={perspectiveStack}
-      />
-    );
+      <DocumentItem icon={DefaultIcon} item={item.document} perspectiveStack={perspectiveStack} />
+    )
   }
 
   return (
@@ -1024,33 +976,25 @@ function SearchResult({
         type: 'page',
       }}
     />
-  );
+  )
 }
 
-function PageMenu({
-  menuItems,
-}: {
-  menuItems: MenuItem[];
-}) {
+function PageMenu({menuItems}: {menuItems: MenuItem[]}) {
   return (
-    <Flex 
-      gap={1}
-      justify="flex-start"
-      direction="column" 
-    >
+    <Flex gap={1} justify="flex-start" direction="column">
       <ScrollableList
         getKey={(item, index) => item.href || item.label || index}
         items={menuItems}
         maxHeight={NAVIGATOR_MAX_HEIGHT}
         renderItem={(item) => {
-          return <MenuItemRow item={item} />;
+          return <MenuItemRow item={item} />
         }}
       />
     </Flex>
-  );
+  )
 }
 
-function Group({ item }: { item: MenuItem }) {
+function Group({item}: {item: MenuItem}) {
   return (
     <Stack>
       <Box paddingX={2} paddingTop={3} paddingBottom={2}>
@@ -1062,21 +1006,16 @@ function Group({ item }: { item: MenuItem }) {
         <MenuItemRow key={child.href || child.label || index} item={child} />
       ))}
     </Stack>
-  );
+  )
 }
 
-function MenuItemRow({ item }: { item: MenuItem }) {
-  const { pushFolder } = useNavigation();
+function MenuItemRow({item}: {item: MenuItem}) {
+  const {pushFolder} = useNavigation()
 
   if (item.type === 'folder') {
     return (
-      <Button
-        mode="bleed"
-        padding={1}
-        onClick={() => pushFolder(item)}
-        width="fill"
-      >
-        <Flex style={{ width: '100%' }} align="center" justify="space-between" gap={3}>
+      <Button mode="bleed" padding={1} onClick={() => pushFolder(item)} width="fill">
+        <Flex style={{width: '100%'}} align="center" justify="space-between" gap={3}>
           <Box flex={1}>
             <SanityDefaultPreview
               layout="compact"
@@ -1088,27 +1027,23 @@ function MenuItemRow({ item }: { item: MenuItem }) {
           <ChevronRightIcon />
         </Flex>
       </Button>
-    );
+    )
   }
 
   if (item.type === 'group') {
-    return <Group item={item} />;
+    return <Group item={item} />
   }
 
-  return <PageItem item={item} />;
+  return <PageItem item={item} />
 }
 
-function Folder({
-  item,
-}: {
-  item: MenuItem;
-}) {
-  const { popFolder } = useNavigation();
-  const perspective = usePerspective();
+function Folder({item}: {item: MenuItem}) {
+  const {popFolder} = useNavigation()
+  const perspective = usePerspective()
   const documentTypes = useMemo(
     () => (item.documentType ? [item.documentType] : []),
     [item.documentType],
-  );
+  )
   const {
     hits: items,
     loading,
@@ -1120,23 +1055,23 @@ function Folder({
     filter: item.filter,
     filterParams: item.filterParams,
     mode: 'browse',
-  });
+  })
 
   const rows = useMemo<FolderRow[]>(() => {
-    const backRow: FolderRow = { type: 'back' };
+    const backRow: FolderRow = {type: 'back'}
 
     if (loading && items.length === 0) {
       return [
         backRow,
-        ...Array.from({ length: 10 }, (_, index) => ({
+        ...Array.from({length: 10}, (_, index) => ({
           type: 'skeleton' as const,
           index,
         })),
-      ];
+      ]
     }
 
     if (item.documentType && items.length === 0) {
-      return [backRow, { type: 'empty' }];
+      return [backRow, {type: 'empty'}]
     }
 
     return [
@@ -1146,27 +1081,23 @@ function Folder({
         document,
       })),
       ...(loadingMore
-        ? Array.from({ length: 3 }, (_, index) => ({
+        ? Array.from({length: 3}, (_, index) => ({
             type: 'skeleton' as const,
             index: items.length + index,
           }))
         : []),
-    ];
-  }, [item.documentType, items, loading, loadingMore]);
-  const resultLabel = `${items.length}${hasNextPage ? '+' : ''} ${items.length === 1 ? 'result' : 'results'}`;
+    ]
+  }, [item.documentType, items, loading, loadingMore])
+  const resultLabel = `${items.length}${hasNextPage ? '+' : ''} ${items.length === 1 ? 'result' : 'results'}`
 
   return (
-    <Flex
-      gap={1}
-      justify="flex-start"
-      direction="column"
-    >
+    <Flex gap={1} justify="flex-start" direction="column">
       <ScrollableList
         getKey={(row, index) => {
-          if (row.type === 'back') return 'back';
-          if (row.type === 'empty') return 'empty';
-          if (row.type === 'skeleton') return `skeleton-${row.index}`;
-          return `${row.document._id || 'document'}-${index}`;
+          if (row.type === 'back') return 'back'
+          if (row.type === 'empty') return 'empty'
+          if (row.type === 'skeleton') return `skeleton-${row.index}`
+          return `${row.document._id || 'document'}-${index}`
         }}
         items={rows}
         maxHeight={NAVIGATOR_MAX_HEIGHT}
@@ -1175,14 +1106,8 @@ function Folder({
         renderItem={(row) => {
           if (row.type === 'back') {
             return (
-              <Button
-                mode="bleed"
-                paddingX={2}
-                paddingY={3}
-                width="fill"
-                onClick={popFolder}
-              >
-                <Flex align="center" justify="space-between" style={{ width: '100%' }}>
+              <Button mode="bleed" paddingX={2} paddingY={3} width="fill" onClick={popFolder}>
+                <Flex align="center" justify="space-between" style={{width: '100%'}}>
                   <Flex align="center" gap={3}>
                     <ChevronLeftIcon />
                     <Text size={1} weight="medium">
@@ -1196,15 +1121,15 @@ function Folder({
                   ) : null}
                 </Flex>
               </Button>
-            );
+            )
           }
 
           if (row.type === 'skeleton') {
-            return <SkeletonItem />;
+            return <SkeletonItem />
           }
 
           if (row.type === 'empty') {
-            return <EmptyFolderState />;
+            return <EmptyFolderState />
           }
 
           return (
@@ -1213,23 +1138,23 @@ function Folder({
               item={row.document}
               perspectiveStack={perspective.perspectiveStack}
             />
-          );
+          )
         }}
       />
     </Flex>
-  );
+  )
 }
 
 type ScrollableListProps<T> = {
-  estimateSize?: (item: T, index: number) => number;
-  getKey: (item: T, index: number) => string | number;
-  items: T[];
-  maxHeight: number;
-  onEndReached?: () => void;
-  overscan?: number;
-  pinnedIndices?: number[];
-  renderItem: (item: T, index: number) => React.ReactNode;
-};
+  estimateSize?: (item: T, index: number) => number
+  getKey: (item: T, index: number) => string | number
+  items: T[]
+  maxHeight: number
+  onEndReached?: () => void
+  overscan?: number
+  pinnedIndices?: number[]
+  renderItem: (item: T, index: number) => React.ReactNode
+}
 
 function ScrollableList<T>({
   estimateSize = () => VIRTUAL_ROW_ESTIMATE_SIZE,
@@ -1241,40 +1166,40 @@ function ScrollableList<T>({
   pinnedIndices = [],
   renderItem,
 }: ScrollableListProps<T>) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const onEndReachedRef = useRef(onEndReached);
-  const pinnedSet = useMemo(() => new Set(pinnedIndices), [pinnedIndices]);
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const onEndReachedRef = useRef(onEndReached)
+  const pinnedSet = useMemo(() => new Set(pinnedIndices), [pinnedIndices])
   const scrollableIndices = useMemo(
     () => items.map((_, index) => index).filter((index) => !pinnedSet.has(index)),
     [items, pinnedSet],
-  );
+  )
 
   useEffect(() => {
-    onEndReachedRef.current = onEndReached;
-  }, [onEndReached]);
+    onEndReachedRef.current = onEndReached
+  }, [onEndReached])
 
   const virtualizer = useVirtualizer({
     count: scrollableIndices.length,
     estimateSize: (index) => {
-      const itemIndex = scrollableIndices[index];
-      return estimateSize(items[itemIndex], itemIndex);
+      const itemIndex = scrollableIndices[index]
+      return estimateSize(items[itemIndex], itemIndex)
     },
     getScrollElement: () => scrollRef.current,
     overscan,
-  });
+  })
 
-  const virtualRows = virtualizer.getVirtualItems();
-  const lastVirtualRow = virtualRows[virtualRows.length - 1];
+  const virtualRows = virtualizer.getVirtualItems()
+  const lastVirtualRow = virtualRows[virtualRows.length - 1]
 
   useEffect(() => {
     if (!onEndReachedRef.current || !lastVirtualRow) {
-      return;
+      return
     }
 
     if (lastVirtualRow.index >= scrollableIndices.length - 1 - VIRTUAL_LIST_OVERSCAN) {
-      onEndReachedRef.current();
+      onEndReachedRef.current()
     }
-  }, [lastVirtualRow, scrollableIndices.length]);
+  }, [lastVirtualRow, scrollableIndices.length])
 
   return (
     <Box
@@ -1310,9 +1235,9 @@ function ScrollableList<T>({
           }}
         >
           {virtualRows.map((virtualRow) => {
-            const itemIndex = scrollableIndices[virtualRow.index];
-            const isFirst = virtualRow.index === 0;
-            const isLast = virtualRow.index === scrollableIndices.length - 1;
+            const itemIndex = scrollableIndices[virtualRow.index]
+            const isFirst = virtualRow.index === 0
+            const isLast = virtualRow.index === scrollableIndices.length - 1
 
             return (
               <Box
@@ -1332,16 +1257,16 @@ function ScrollableList<T>({
               >
                 {renderItem(items[itemIndex], itemIndex)}
               </Box>
-            );
+            )
           })}
         </Box>
       ) : null}
     </Box>
-  );
+  )
 }
 
-function PageItem({ item }: { item: MenuItem }) {
-  const { onSelect } = useNavigation();
+function PageItem({item}: {item: MenuItem}) {
+  const {onSelect} = useNavigation()
 
   return (
     <Button
@@ -1349,13 +1274,13 @@ function PageItem({ item }: { item: MenuItem }) {
         onSelect?.({
           label: item.omitLabelOnSelect ? undefined : item.label,
           href: item.href,
-        });
+        })
       }}
       mode="bleed"
       padding={1}
       width="fill"
     >
-      <Box style={{ width: '100%' }}>
+      <Box style={{width: '100%'}}>
         <SanityDefaultPreview
           layout="compact"
           title={item.label}
@@ -1364,7 +1289,7 @@ function PageItem({ item }: { item: MenuItem }) {
         />
       </Box>
     </Button>
-  );
+  )
 }
 
 function DocumentItem({
@@ -1372,28 +1297,27 @@ function DocumentItem({
   item,
   perspectiveStack,
 }: {
-  icon?: () => React.ReactNode;
+  icon?: () => React.ReactNode
   item: {
-    title?: string;
-    label?: string;
-    _type?: string;
-    _id?: string;
-  };
-  perspectiveStack?: string[];
+    title?: string
+    label?: string
+    _type?: string
+    _id?: string
+  }
+  perspectiveStack?: string[]
 }) {
-  const { onSelect } = useNavigation();
-  const schema = useSchema();
-  const schemaType = item._type ? schema.get(item._type) : undefined;
-  const fallbackMedia = item._id === 'default' ? DefaultIcon : icon;
+  const {onSelect} = useNavigation()
+  const schema = useSchema()
+  const schemaType = item._type ? schema.get(item._type) : undefined
+  const fallbackMedia = item._id === 'default' ? DefaultIcon : icon
   const preview = useValuePreview({
     enabled: Boolean(schemaType && item._id && item._type),
     schemaType: schemaType as SchemaType | undefined,
     value: item._id && item._type ? {_id: item._id, _type: item._type} : undefined,
     perspectiveStack,
-  });
-  const previewTitle =
-    typeof preview?.value?.title === 'string' ? preview.value.title : undefined;
-  const label = item.label || item.title || previewTitle;
+  })
+  const previewTitle = typeof preview?.value?.title === 'string' ? preview.value.title : undefined
+  const label = item.label || item.title || previewTitle
 
   return (
     <Button
@@ -1419,7 +1343,7 @@ function DocumentItem({
           showBadge={false}
         />
       ) : (
-        <Box style={{ width: '100%' }}>
+        <Box style={{width: '100%'}}>
           <SanityDefaultPreview
             layout="compact"
             title={label}
@@ -1429,31 +1353,35 @@ function DocumentItem({
         </Box>
       )}
     </Button>
-  );
+  )
 }
 
 function SkeletonItem() {
   return (
     <Button mode="bleed" width="fill" padding={1} disabled>
-      <Box style={{ width: '100%' }}>
+      <Box style={{width: '100%'}}>
         <SanityDefaultPreview isPlaceholder layout="compact" />
       </Box>
     </Button>
-  );
+  )
 }
 
 function EmptyFolderState() {
-  const { onClose } = useNavigation();
+  const {onClose} = useNavigation()
 
   return (
     <Button mode="bleed" width="fill" padding={1} onClick={onClose}>
-      <Box style={{ width: '100%' }}>
+      <Box style={{width: '100%'}}>
         <SanityDefaultPreview
           icon={false}
           layout="compact"
-          title={<Text muted size={1}>No results</Text>}
+          title={
+            <Text muted size={1}>
+              No results
+            </Text>
+          }
         />
       </Box>
     </Button>
-  );
+  )
 }

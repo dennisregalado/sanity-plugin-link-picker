@@ -1,4 +1,10 @@
+import {CloseIcon} from '@sanity/icons/Close'
+import {EditIcon} from '@sanity/icons/Edit'
+import {Button, Text, Flex, Grid, useClickOutsideEvent, Box, Card} from '@sanity/ui'
+import {Popover} from '@sanity/ui/popover'
+import {Tooltip} from '@sanity/ui/tooltip'
 import React, {type ComponentType} from 'react'
+import {useState, useMemo, useRef, createContext, useContext, useEffect} from 'react'
 import {
   type FormPatch,
   getPublishedId,
@@ -11,12 +17,9 @@ import {
   unset,
   useClient,
 } from 'sanity'
-import {Button, Text, Flex, Grid, useClickOutsideEvent, Box, Card} from '@sanity/ui'
-import {Popover} from '@sanity/ui/popover'
-import {Tooltip} from '@sanity/ui/tooltip'
-import {CloseIcon} from '@sanity/icons/Close'
-import {EditIcon} from '@sanity/icons/Edit'
-import {useState, useMemo, useRef, createContext, useContext, useEffect} from 'react'
+import {SanityDefaultPreview, SearchResultItemPreview, usePerspective} from 'sanity'
+import {usePaneRouter} from 'sanity/structure'
+
 import {
   VisualEditorNavigator,
   getFlattenedLinkRoutes,
@@ -26,10 +29,8 @@ import {
   normalizeLinkIcon,
   normalizeLinkHref,
 } from './navigator'
-import {SanityDefaultPreview, SearchResultItemPreview, usePerspective} from 'sanity'
-import {usePaneRouter} from 'sanity/structure'
-import type {LinkInputProps} from './types'
 import type {LinkRouteDefinition, LinksPluginProps, StaticLinkRoute} from './navigator'
+import type {LinkInputProps} from './types'
 const SmallEditIcon = (props: React.ComponentProps<typeof EditIcon>) => (
   <EditIcon {...props} style={{...props.style, display: 'block'}} />
 )

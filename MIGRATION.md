@@ -87,9 +87,7 @@ linkPlugin({
     linkRoute.documents('Pages', 'page'),
     linkRoute.documents('Products', 'product'),
   ],
-  fields: [
-    defineField({name: 'parameters', type: 'string'}),
-  ],
+  fields: [defineField({name: 'parameters', type: 'string'})],
 })
 ```
 
@@ -104,9 +102,7 @@ linkPicker(
     documents('Products', 'product'),
   ],
   {
-    fields: [
-      defineField({name: 'parameters', type: 'string'}),
-    ],
+    fields: [defineField({name: 'parameters', type: 'string'})],
   },
 )
 ```
@@ -114,10 +110,7 @@ linkPicker(
 Routes only:
 
 ```ts
-linkPicker([
-  route('Home', '/'),
-  documents('Pages', 'page'),
-])
+linkPicker([route('Home', '/'), documents('Pages', 'page')])
 ```
 
 No config:
@@ -128,11 +121,11 @@ linkPicker()
 
 ### 5. Flatten route helpers
 
-| Before | After |
-| --- | --- |
-| `linkRoute.route(title, path)` | `route(title, path)` |
+| Before                             | After                    |
+| ---------------------------------- | ------------------------ |
+| `linkRoute.route(title, path)`     | `route(title, path)`     |
 | `linkRoute.documents(title, type)` | `documents(title, type)` |
-| `linkRoute.group(title, routes)` | `group(title, routes)` |
+| `linkRoute.group(title, routes)`   | `group(title, routes)`   |
 
 Field-level overrides still use `options.routes`:
 
@@ -141,10 +134,7 @@ defineField({
   name: 'link',
   type: 'link',
   options: {
-    routes: [
-      route('Contact', '/contact'),
-      documents('Products', 'product'),
-    ],
+    routes: [route('Contact', '/contact'), documents('Products', 'product')],
   },
 })
 ```

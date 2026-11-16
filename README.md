@@ -1,4 +1,5 @@
 # sanity-plugin-link-picker
+
 <img width="800" height="521" alt="CleanShot 2026-06-29 at 12 10 51" src="https://github.com/user-attachments/assets/315ca49c-af57-4040-b838-b9272a2eade6" />
 
 A small Sanity Studio link field for choosing a label, a URL, and optionally a weak reference, inspired by Shopify's link picker.
@@ -190,10 +191,7 @@ defineField({
   title: 'Link',
   type: 'link',
   options: {
-    routes: [
-      route('Contact', '/contact'),
-      documents('Products', 'product'),
-    ],
+    routes: [route('Contact', '/contact'), documents('Products', 'product')],
   },
 })
 ```
@@ -207,32 +205,26 @@ If your project needs extra fields, append them at the plugin level. You can als
 ```ts
 import {defineField} from 'sanity'
 
-linkPicker(
-  [
-    route('Home', '/'),
-    documents('Pages', 'page'),
+linkPicker([route('Home', '/'), documents('Pages', 'page')], {
+  fields: [
+    defineField({
+      name: 'parameters',
+      title: 'Parameters',
+      type: 'string',
+    }),
+    defineField({
+      name: 'anchor',
+      title: 'Anchor',
+      type: 'string',
+    }),
   ],
-  {
-    fields: [
-      defineField({
-        name: 'parameters',
-        title: 'Parameters',
-        type: 'string',
-      }),
-      defineField({
-        name: 'anchor',
-        title: 'Anchor',
-        type: 'string',
-      }),
-    ],
-    preview: {
-      select: {
-        title: 'label',
-        subtitle: 'url',
-      },
+  preview: {
+    select: {
+      title: 'label',
+      subtitle: 'url',
     },
   },
-)
+})
 ```
 
 Keep the default fields stable when possible. Most projects can model extra frontend behavior in GROQ or in their link resolver without changing the stored shape.
@@ -268,11 +260,11 @@ defineField({
 
 ### Field mapping
 
-| Old shape                                            | Plugin field | Notes                                                                                 |
-| ---------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------- |
-| `title`                                              | `label`      | Editor-facing text.                                                                   |
-| `link.url`                                           | `url`        | External URLs, paths, `mailto:`, `tel:`, hashes, query strings.                       |
-| `pageLink` / `productLink` / `collectionLink` ref    | `reference`  | Keep the same `_ref`; the URL is resolved in GROQ from the referenced document.        |
+| Old shape                                         | Plugin field | Notes                                                                           |
+| ------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- |
+| `title`                                           | `label`      | Editor-facing text.                                                             |
+| `link.url`                                        | `url`        | External URLs, paths, `mailto:`, `tel:`, hashes, query strings.                 |
+| `pageLink` / `productLink` / `collectionLink` ref | `reference`  | Keep the same `_ref`; the URL is resolved in GROQ from the referenced document. |
 
 The plugin intentionally stores only `{label, url, reference}`. Anything URL-shaped lives in `url`; anything internal lives in `reference`. Your frontend decides what a reference becomes.
 
