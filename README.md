@@ -43,7 +43,7 @@ npm install sanity-plugin-link-picker
 
 - **Sanity Studio v6** (`sanity@^6`). The plugin imports from the `@sanity/ui` 4 and `@sanity/icons` 5 subpaths (`@sanity/ui/popover`, `@sanity/icons/Edit`, …), which don't exist in the versions bundled with Sanity 5.
 - `@sanity/ui` (`^4`) and `@sanity/icons` (`^5`) are peer dependencies, so the plugin uses your Studio's own copy. `sanity` already installs both; you don't need to add them yourself.
-- On Sanity 5? Stay on the 1.x line: `npm install sanity-plugin-link-picker@^1`.
+- On Sanity 5? Stay on the 1.x line: `npm install sanity-plugin-link-picker@^1`. Upgrading from 1.x? See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-20).
 
 ## Usage
 
@@ -385,7 +385,7 @@ import {
 } from 'sanity-plugin-link-picker'
 ```
 
-Upgrading from `sanity-plugin-link` or an earlier `linkPlugin` / `linkRoute` API? See [MIGRATION.md](./MIGRATION.md).
+Upgrading from 1.x to 2.0 (Sanity 6 required), or from `sanity-plugin-link` / the earlier `linkPlugin` / `linkRoute` API? See [MIGRATION.md](./MIGRATION.md).
 
 ## License
 
