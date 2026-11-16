@@ -20,7 +20,7 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
+      "source": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
@@ -34,32 +34,26 @@
   "scripts": {
     "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
     "dev": "cd dev && sanity dev",
-    "format": "prettier --write --cache --ignore-unknown .",
+    "format": "oxfmt",
     "link-watch": "plugin-kit link-watch",
-    "lint": "eslint .",
+    "lint": "oxlint",
     "prepublishOnly": "npm run build",
     "watch": "pkg-utils watch --strict"
   },
   "dependencies": {
+    "@sanity/icons": "^5.2.1",
+    "@sanity/ui": "^4.0.3",
     "@tanstack/react-virtual": "^3.14.5",
     "lucide-react": "^1.22.0"
   },
   "devDependencies": {
-    "@sanity/icons": "^5.4.0",
-    "@sanity/pkg-utils": "^10.7.2",
-    "@sanity/plugin-kit": "^6.0.0",
-    "@sanity/ui": "^4.4.12",
+    "@sanity/browserslist-config": "^1.0.5",
+    "@sanity/pkg-utils": "^13.0.18",
+    "@sanity/plugin-kit": "^10.1.1",
     "@types/react": "^19.2.17",
-    "@typescript-eslint/eslint-plugin": "^8.62.0",
-    "@typescript-eslint/parser": "^8.62.0",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-config-sanity": "^7.1.4",
-    "eslint-plugin-prettier": "^5.5.6",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "prettier": "^3.9.1",
-    "prettier-plugin-packagejson": "^3.0.2",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.94.0",
+    "oxlint-tsgolint": "^7.0.2007",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sanity": "^6.23.0",
@@ -67,12 +61,16 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@sanity/icons": "^5",
-    "@sanity/ui": "^4",
     "react": "^18 || ^19",
     "sanity": "^6"
   },
   "engines": {
     "node": ">=20.19 <22 || >=22.12"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
   }
 }
