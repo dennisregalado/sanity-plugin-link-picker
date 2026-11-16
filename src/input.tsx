@@ -1,17 +1,10 @@
 import React from 'react'
 import {set, InputProps, ObjectInputProps, type SchemaType, unset, useClient} from 'sanity'
-import {
-  Popover,
-  Button,
-  Text,
-  Flex,
-  Grid,
-  useClickOutsideEvent,
-  Box,
-  Card,
-  Tooltip,
-} from '@sanity/ui'
-import {CloseIcon, EditIcon} from '@sanity/icons'
+import {Button, Text, Flex, Grid, useClickOutsideEvent, Box, Card} from '@sanity/ui'
+import {Popover} from '@sanity/ui/popover'
+import {Tooltip} from '@sanity/ui/tooltip'
+import {CloseIcon} from '@sanity/icons/Close'
+import {EditIcon} from '@sanity/icons/Edit'
 import {useState, useMemo, useRef, createContext, useContext, useEffect} from 'react'
 import {
   VisualEditorNavigator,
@@ -194,7 +187,7 @@ export function LinkInput(props: LinkInputProps) {
         animate
         open={canOpenPopover && popoverOpen}
       />
-      <Grid gridTemplateColumns={2} gapX={1} gapY={3} width="fill">
+      <Grid gridTemplateColumns={2} gapX={1} gapY={3}>
         <Box>
           {props.renderDefault({
             ...props,
@@ -297,7 +290,6 @@ function ReferencePreviewInput(props: InputProps) {
               <Button
                 as="span"
                 mode={referencePaneOpen ? 'default' : 'bleed'}
-                size={1}
                 padding={0}
                 tone={referencePaneOpen ? 'primary' : 'default'}
                 width="fill"
@@ -310,7 +302,6 @@ function ReferencePreviewInput(props: InputProps) {
             <Button
               disabled
               mode="bleed"
-              size={1}
               padding={0}
               width="fill"
               style={{clipPath: 'inset(3px round 2px)'}}

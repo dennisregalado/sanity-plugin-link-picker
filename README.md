@@ -39,6 +39,12 @@ Either way you get validation at edit time and a uniform `{label, url}` on the f
 npm install sanity-plugin-link-picker
 ```
 
+### Requirements
+
+- **Sanity Studio v6** (`sanity@^6`). The plugin imports from the `@sanity/ui` 4 and `@sanity/icons` 5 subpaths (`@sanity/ui/popover`, `@sanity/icons/Edit`, …), which don't exist in the versions bundled with Sanity 5.
+- `@sanity/ui` (`^4`) and `@sanity/icons` (`^5`) are peer dependencies, so the plugin uses your Studio's own copy. `sanity` already installs both; you don't need to add them yourself.
+- On Sanity 5? Stay on the 1.x line: `npm install sanity-plugin-link-picker@^1`.
+
 ## Usage
 
 Add the plugin to `sanity.config.ts`:
