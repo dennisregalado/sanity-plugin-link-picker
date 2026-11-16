@@ -54,7 +54,8 @@ export function LinkInput(props: LinkInputProps) {
   const menu = useMemo(() => ({routes}), [routes])
   const flattenedRoutes = useMemo(() => getFlattenedLinkRoutes(menu.routes), [menu])
   const linkReferenceTypes = useMemo(() => getReferenceTypesFromRoutes(menu.routes), [menu])
-  const canOpenPopover = flattenedRoutes.length > 0 || linkReferenceTypes.length > 0
+  const canOpenPopover =
+    !props.readOnly && (flattenedRoutes.length > 0 || linkReferenceTypes.length > 0)
 
   useClickOutsideEvent(
     () => {
@@ -128,6 +129,7 @@ export function LinkInput(props: LinkInputProps) {
         setSearchQuery,
         flattenedRoutes,
         replaceReference: (inputProps) => {
+          if (props.readOnly || inputProps.readOnly) return
           inputProps.onChange(unset())
           setSearchQuery('')
           if (canOpenPopover) setPopoverOpen(true)
@@ -155,6 +157,8 @@ export function LinkInput(props: LinkInputProps) {
                 setPopoverOpen(false)
               }}
               onSelect={(selected) => {
+                if (props.readOnly) return
+
                 const key = props.value?._key || randomKey(12)
 
                 props.onChange(
@@ -321,6 +325,7 @@ function ReferencePreviewInput(props: InputProps) {
         >
           <Button
             style={{clipPath: 'inset(3px round 2px)'}}
+            disabled={props.readOnly}
             icon={EditIcon}
             mode="bleed"
             onClick={() => linkContext?.replaceReference?.(props)}
@@ -431,11 +436,12 @@ function URLInput(props: InputProps) {
       ...(props.elementProps as any),
       icon: getIcon(),
       value: draftValue,
-      clearButton: draftValue
-        ? {
-            icon: isValidLink(draftValue) ? SmallEditIcon : CloseIcon,
-          }
-        : false,
+      clearButton:
+        draftValue && !props.readOnly
+          ? {
+              icon: isValidLink(draftValue) ? SmallEditIcon : CloseIcon,
+            }
+          : false,
       onBlur: (event: any) => {
         props.elementProps?.onBlur?.(event)
         setFocused(false)
@@ -449,6 +455,7 @@ function URLInput(props: InputProps) {
         }
       },
       onClear: () => {
+        if (props.readOnly) return
         linkContext.closePopover()
         setDraftValue('')
         linkContext.setSearchQuery('')
@@ -465,7 +472,7 @@ function URLInput(props: InputProps) {
       },
       onFocus: () => {
         setFocused(true)
-        if (!linkContext.canOpenPopover) {
+        if (!linkContext.canOpenPopover || props.readOnly) {
           return
         }
 
