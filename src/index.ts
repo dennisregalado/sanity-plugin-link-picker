@@ -8,9 +8,10 @@ import {
   type SchemaTypeDefinition,
 } from 'sanity'
 
+import {normalizeLinkHref} from './href'
 import {LinkInput} from './input'
-import {getReferenceTypesFromRoutes, normalizeLinkHref} from './navigator'
-import type {LinkRouteDefinition, LinksPluginProps} from './navigator'
+import {getReferenceTypesFromRoutes} from './routes'
+import type {LinkRouteDefinition, LinksPluginProps} from './routes'
 import type {LinkFieldPluginOptions, LinkInputProps, LinkSchemaType, LinkValue} from './types'
 
 function resolveRoutes(
@@ -157,7 +158,7 @@ export function linkPicker(
   })()
 }
 
-export {defineLinkMenu, documents, group, route} from './navigator'
+export {defineLinkMenu, documents, group, route} from './routes'
 export type {
   LinkDocumentFolder,
   LinkIconInput,
@@ -165,7 +166,7 @@ export type {
   LinkRouteGroup,
   LinksPluginProps,
   StaticLinkRoute,
-} from './navigator'
+} from './routes'
 export type {
   LinkFieldOptions,
   LinkFieldPluginOptions,

@@ -36,24 +36,33 @@ import {
   type SchemaType,
 } from 'sanity'
 
+import {getSystemLinkType, normalizeLinkHref, type SystemLinkType} from './href'
+import {
+  applyReferenceTypes,
+  getFlattenedLinkRoutes,
+  getReferenceTypesFromRoutes,
+  type LinkIconInput,
+  type LinkRouteDefinition,
+  type StaticLinkRoute,
+} from './routes'
+
 const DefaultIcon = () => <Text>✨</Text>
+
 const NAVIGATOR_MAX_HEIGHT = 390
+
 const ICON_SIZE = 16
+
 const VIRTUAL_LIST_OVERSCAN = 5
+
 const VIRTUAL_ROW_ESTIMATE_SIZE = 52
+
 const SEARCH_PAGE_SIZE = 25
+
 const SEARCH_DEBOUNCE_MS = 300
+
 const STICKY_ROW_BACKGROUND = 'var(--card-bg-color, var(--card-backdrop-color, canvas))'
 
 type LinkIcon = () => React.ReactNode
-/**
- * An icon for a route, group or document folder: a component (such as one from `@sanity/icons`),
- * a React element, or a string such as an emoji.
- *
- * @public
- */
-export type LinkIconInput = React.ElementType | React.ReactNode | string
-type SystemLinkType = 'internal' | 'external' | 'email' | 'phone'
 
 const defaultLinkTypeIcons: Record<SystemLinkType, LucideIcon> = {
   internal: LinkIcon,
@@ -95,227 +104,6 @@ type SearchDocument = {
   title?: string
 }
 
-/**
- * A static path shown in the picker. Selecting it stores `path` in the link's `url`. Create with {@link route}.
- *
- * @public
- */
-export type StaticLinkRoute = {
-  type: 'route'
-  title: string
-  path: string
-  icon?: LinkIconInput
-}
-
-/**
- * A labelled section of routes in the picker. Create with {@link group}.
- *
- * @public
- */
-export type LinkRouteGroup = {
-  type: 'group'
-  title: string
-  icon?: LinkIconInput
-  routes: LinkRouteDefinition[]
-}
-
-/**
- * A browsable folder of documents of one type. Selecting a document stores a weak reference. Create with {@link documents}.
- *
- * @public
- */
-export type LinkDocumentFolder = {
-  type: 'documents'
-  title: string
-  documentType: string
-  icon?: LinkIconInput
-  filter?: string
-  filterParams?: QueryParams
-}
-
-/**
- * Any entry in the link picker menu.
- *
- * @public
- */
-export type LinkRouteDefinition = StaticLinkRoute | LinkRouteGroup | LinkDocumentFolder
-
-/**
- * A link picker menu, as returned by {@link defineLinkMenu}.
- *
- * @public
- */
-export type LinksPluginProps = {
-  routes: LinkRouteDefinition[]
-}
-
-/**
- * Defines a link picker menu and warns in development about malformed routes (for example paths that don't start with `/`).
- *
- * @public
- */
-export function defineLinkMenu(routes: LinkRouteDefinition[]): LinksPluginProps {
-  const config = {routes}
-  validateLinksConfig(config)
-  return config
-}
-
-export function getFlattenedLinkRoutes(routes: LinkRouteDefinition[]): StaticLinkRoute[] {
-  const result: StaticLinkRoute[] = []
-
-  for (const route of routes) {
-    if (route.type === 'group') {
-      result.push(...getFlattenedLinkRoutes(route.routes))
-    } else if (route.type === 'route') {
-      result.push(route)
-    }
-  }
-
-  return result
-}
-
-export function getReferenceTypesFromRoutes(routes: LinkRouteDefinition[]): string[] {
-  const documentTypes = new Set<string>()
-
-  for (const route of routes) {
-    if (route.type === 'group') {
-      for (const type of getReferenceTypesFromRoutes(route.routes)) {
-        documentTypes.add(type)
-      }
-    }
-
-    if (route.type === 'documents') {
-      documentTypes.add(route.documentType)
-    }
-  }
-
-  return Array.from(documentTypes)
-}
-
-export function getReferenceTypesFromSchemaType(
-  schemaType: unknown,
-  fieldName = 'reference',
-): string[] {
-  const fields = (schemaType as any)?.fields
-  const referenceField = Array.isArray(fields)
-    ? fields.find((field) => field?.name === fieldName)
-    : undefined
-  const to = referenceField?.type?.to || referenceField?.to
-
-  if (!Array.isArray(to)) {
-    return []
-  }
-
-  return to
-    .map((target) => target?.name || target?.type)
-    .filter((type): type is string => typeof type === 'string')
-}
-
-export function normalizeLinkHref(value: string | null | undefined): string | null {
-  const input = value?.trim()
-
-  if (!input) {
-    return null
-  }
-
-  if (input.startsWith('/') || input.startsWith('#') || input.startsWith('?')) {
-    return input
-  }
-
-  if (/^mailto:/i.test(input)) {
-    const email = input.slice('mailto:'.length).trim()
-    return isEmailAddress(email) ? `mailto:${email}` : null
-  }
-
-  if (isEmailAddress(input)) {
-    return `mailto:${input}`
-  }
-
-  if (/^tel:/i.test(input)) {
-    const phone = normalizePhoneNumber(input.slice('tel:'.length))
-    return phone ? `tel:${phone}` : null
-  }
-
-  const phone = normalizePhoneNumber(input)
-  if (phone) {
-    return `tel:${phone}`
-  }
-
-  if (/^https?:\/\//i.test(input)) {
-    return isAbsoluteUrl(input) ? input : null
-  }
-
-  if (looksLikeDomain(input)) {
-    return `https://${input}`
-  }
-
-  return null
-}
-
-export function isInternalLinkHref(value: string | null | undefined) {
-  return Boolean(value?.startsWith('/') || value?.startsWith('#') || value?.startsWith('?'))
-}
-
-/**
- * Creates a static route.
- *
- * @param title - Label shown in the picker, and used as the link label when selected
- * @param path - Stored in the link's `url` when selected
- *
- * @public
- */
-export function route(
-  title: string,
-  path: string,
-  options?: Omit<StaticLinkRoute, 'type' | 'title' | 'path'>,
-): StaticLinkRoute {
-  return {type: 'route', title, path, ...options}
-}
-
-/**
- * Creates a labelled group of routes.
- *
- * @param title - Section heading shown in the picker
- * @param routes - Routes, groups or document folders in the group
- *
- * @public
- */
-export function group(
-  title: string,
-  routes: LinkRouteDefinition[],
-  options?: Omit<LinkRouteGroup, 'type' | 'title' | 'routes'>,
-): LinkRouteGroup {
-  return {
-    type: 'group',
-    title,
-    routes,
-    ...options,
-  }
-}
-
-/**
- * Creates a folder of documents of one type. Document types used here must also be passed to
- * `linkPicker()` so the link schema's `reference` field accepts them.
- *
- * @param title - Folder label shown in the picker
- * @param documentType - The document type to list and search
- *
- * @public
- */
-export function documents(
-  title: string,
-  documentType: string,
-  options?: Omit<LinkDocumentFolder, 'type' | 'title' | 'documentType'>,
-): LinkDocumentFolder {
-  return {
-    type: 'documents',
-    title,
-    documentType,
-    ...options,
-  }
-}
-
-// Type definitions
 type NavigatorProps = {
   onSelect?: (item: {
     label?: string
@@ -406,18 +194,6 @@ function isReactComponentObject(icon: unknown): icon is React.ElementType {
   )
 }
 
-function getSystemLinkType(href: string): SystemLinkType {
-  if (href.startsWith('mailto:')) {
-    return 'email'
-  }
-
-  if (href.startsWith('tel:')) {
-    return 'phone'
-  }
-
-  return isInternalLinkHref(href) ? 'internal' : 'external'
-}
-
 export function getSystemLinkIcon(href: string, options?: {shift?: boolean}): LinkIcon {
   const Icon = defaultLinkTypeIcons[getSystemLinkType(href)]
 
@@ -426,43 +202,6 @@ export function getSystemLinkIcon(href: string, options?: {shift?: boolean}): Li
       <Icon size={ICON_SIZE} />
     </NormalizedLinkIcon>
   )
-}
-
-function isEmailAddress(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
-
-function normalizePhoneNumber(value: string) {
-  const trimmed = value.trim()
-
-  if (!/^\+?[\d\s().-]+$/.test(trimmed)) {
-    return null
-  }
-
-  const digits = trimmed.replace(/\D/g, '')
-
-  if (digits.length < (trimmed.startsWith('+') ? 7 : 10)) {
-    return null
-  }
-
-  return `${trimmed.startsWith('+') ? '+' : ''}${digits}`
-}
-
-function isAbsoluteUrl(value: string) {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-function looksLikeDomain(value: string) {
-  if (/\s/.test(value) || value.includes('@')) {
-    return false
-  }
-
-  return /^(?:[a-z0-9-]+\.)+[a-z]{2,63}(?::\d+)?(?:[/?#].*)?$/i.test(value)
 }
 
 function getTypedLinkResult(query: string): SearchResultItem | null {
@@ -479,64 +218,6 @@ function getTypedLinkResult(query: string): SearchResultItem | null {
     label: href,
     title: href,
   }
-}
-
-function applyReferenceTypes(
-  routes: LinkRouteDefinition[],
-  referenceTypes?: string[],
-): LinkRouteDefinition[] {
-  if (!referenceTypes?.length) {
-    return routes
-  }
-
-  return routes
-    .map((route) => {
-      if (route.type === 'group') {
-        return {
-          ...route,
-          routes: applyReferenceTypes(route.routes, referenceTypes),
-        }
-      }
-
-      return route
-    })
-    .filter((route) => {
-      if (route.type !== 'documents') {
-        return true
-      }
-
-      return referenceTypes.includes(route.documentType)
-    })
-}
-
-function validateLinksConfig(config: LinksPluginProps) {
-  const nodeEnv = (globalThis as {process?: {env?: {NODE_ENV?: string}}}).process?.env?.NODE_ENV
-  if (nodeEnv === 'production') {
-    return
-  }
-
-  for (const warning of getLinkConfigWarnings(config.routes)) {
-    console.warn(`[sanity-plugin-link-picker] ${warning}`)
-  }
-}
-
-function getLinkConfigWarnings(routes: LinkRouteDefinition[], path: string[] = []): string[] {
-  const warnings: string[] = []
-
-  for (const route of routes) {
-    const label = route.title
-    const nextPath = [...path, label]
-
-    if (route.type === 'route' && !route.path.startsWith('/')) {
-      warnings.push(`${nextPath.join(' > ')} path should start with "/".`)
-    }
-
-    if (route.type === 'group') {
-      warnings.push(...getLinkConfigWarnings(route.routes, nextPath))
-    }
-  }
-
-  return warnings
 }
 
 function normalizeRoutes(routes: LinkRouteDefinition[]): MenuItem[] {

@@ -43,6 +43,8 @@
     "link-watch": "plugin-kit link-watch",
     "lint": "oxlint",
     "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "watch": "pkg-utils watch --strict"
   },
   "dependencies": {
@@ -63,7 +65,8 @@
     "react-dom": "^19.3.1",
     "sanity": "^6.23.0",
     "styled-components": "^6.4.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "react": "^19.2",

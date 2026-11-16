@@ -6,30 +6,28 @@ import {Tooltip} from '@sanity/ui/tooltip'
 import React, {type ComponentType} from 'react'
 import {useState, useMemo, useRef, createContext, useContext, useEffect} from 'react'
 import {
-  type FormPatch,
-  getPublishedId,
   type InputProps,
   type ObjectInputProps,
   type ObjectMember,
   type SchemaType,
   set,
-  setIfMissing,
   unset,
   useClient,
 } from 'sanity'
 import {SanityDefaultPreview, SearchResultItemPreview, usePerspective} from 'sanity'
 import {usePaneRouter} from 'sanity/structure'
 
+import {normalizeLinkHref} from './href'
+import {VisualEditorNavigator, getSystemLinkIcon, normalizeLinkIcon} from './navigator'
+import {buildSelectionPatches} from './patches'
 import {
-  VisualEditorNavigator,
   getFlattenedLinkRoutes,
   getReferenceTypesFromRoutes,
   getReferenceTypesFromSchemaType,
-  getSystemLinkIcon,
-  normalizeLinkIcon,
-  normalizeLinkHref,
-} from './navigator'
-import type {LinkRouteDefinition, LinksPluginProps, StaticLinkRoute} from './navigator'
+  type LinkRouteDefinition,
+  type LinksPluginProps,
+  type StaticLinkRoute,
+} from './routes'
 import type {LinkInputProps} from './types'
 const SmallEditIcon = (props: React.ComponentProps<typeof EditIcon>) => (
   <EditIcon {...props} style={{...props.style, display: 'block'}} />
@@ -182,32 +180,7 @@ export function LinkInput(props: LinkInputProps) {
               onSelect={(selected) => {
                 if (props.readOnly) return
 
-                // Patch individual fields rather than replacing the whole object, so that
-                // custom `fields`, the array `_key` and concurrent edits are preserved.
-                const patches: FormPatch[] = [setIfMissing({_type: props.schemaType.name})]
-
-                if (selected.label) {
-                  patches.push(set(selected.label, ['label']))
-                }
-
-                if (selected._id) {
-                  patches.push(
-                    set(
-                      {
-                        _type: 'reference',
-                        // Search hits can be draft (`drafts.`) or release (`versions.`) ids;
-                        // references must always point at the published id.
-                        _ref: getPublishedId(selected._id),
-                        _weak: true,
-                      },
-                      ['reference'],
-                    ),
-                    unset(['url']),
-                  )
-                } else if (selected.href) {
-                  patches.push(set(selected.href, ['url']), unset(['reference']))
-                }
-
+                const patches = buildSelectionPatches(props.schemaType.name, selected)
                 props.onChange(patches)
                 setSearchQuery('')
                 setPopoverOpen(false)
