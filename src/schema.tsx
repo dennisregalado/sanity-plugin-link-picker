@@ -37,9 +37,11 @@ export function createLinkType(
     preview: preview || {
       select: {
         label: 'label',
+        url: 'url',
       },
-      prepare: ({label}: {label?: string}) => ({
-        title: label,
+      prepare: ({label, url}: {label?: string; url?: string}) => ({
+        title: label || url,
+        subtitle: label ? url : undefined,
       }),
     },
     fields: [
