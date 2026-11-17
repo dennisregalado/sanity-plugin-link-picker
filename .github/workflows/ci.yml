@@ -31,3 +31,9 @@ jobs:
       - run: npm test
       # Runs plugin-kit verify-package and pkg-utils build --strict --check
       - run: npm run build
+      # The packed package.json must not point at src/ (see scripts/publish-exports.mjs)
+      - run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          tar -xzf "$RUNNER_TEMP"/*.tgz -C "$RUNNER_TEMP" package/package.json
+          node scripts/publish-exports.mjs check "$RUNNER_TEMP/package/package.json"
+          git diff --exit-code package.json

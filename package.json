@@ -41,6 +41,8 @@
     "format": "oxfmt",
     "link-watch": "plugin-kit link-watch",
     "lint": "oxlint",
+    "postpack": "node scripts/publish-exports.mjs restore",
+    "prepack": "node scripts/publish-exports.mjs apply",
     "prepublishOnly": "npm run typecheck && npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

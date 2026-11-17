@@ -63,3 +63,6 @@ dist
 .sanity
 dev/.env*
 !dev/.env.example
+
+# Temporary backup made by scripts/publish-exports.mjs during npm pack
+package.json.prepack
