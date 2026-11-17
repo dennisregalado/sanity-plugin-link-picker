@@ -36,7 +36,7 @@ import {type RouterPanes, usePaneRouter} from 'sanity/structure'
 
 import {normalizeLinkHref} from './href'
 import {linkPickerLocaleNamespace} from './i18n'
-import {VisualEditorNavigator, getSystemLinkIcon, normalizeLinkIcon} from './navigator'
+import {VisualEditorNavigator, getOptionId, getSystemLinkIcon, normalizeLinkIcon} from './navigator'
 import {buildSelectionPatches, type LinkSelection} from './patches'
 import {
   applyReferenceTypes,
@@ -100,6 +100,11 @@ type LinkContextValue = {
   setSearchQuery: (query: string) => void
   flattenedRoutes: StaticLinkRoute[]
   replaceReference: (inputProps: InputProps) => void
+  /** Element id of the keyboard-highlighted option, for aria-activedescendant */
+  activeOptionId: string | undefined
+  moveActiveOption: (delta: number) => void
+  /** Selects the keyboard-highlighted option. Returns false when nothing is highlighted. */
+  selectActiveOption: () => boolean
 }
 
 const LinkContext = createContext<LinkContextValue | null>(null)
@@ -115,7 +120,8 @@ function useLinkContext(): LinkContextValue {
 export function LinkInput(props: LinkInputProps) {
   const {members, onChange, onPathFocus, readOnly, renderDefault, schemaType, value} = props
   const [popoverOpen, setPopoverOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQueryState] = useState('')
+  const [activeOption, setActiveOption] = useState<string | null>(null)
   const [anchorElement, setAnchorElement] = useState<HTMLDivElement | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const popoverId = useId()
@@ -178,10 +184,49 @@ export function LinkInput(props: LinkInputProps) {
     if (canOpenPopover) setPopoverOpen(true)
   }, [canOpenPopover])
 
+  const setSearchQuery = useCallback((query: string) => {
+    setSearchQueryState(query)
+    setActiveOption(null)
+  }, [])
+
   const closePopover = useCallback(() => {
     setPopoverOpen(false)
     setSearchQuery('')
-  }, [])
+  }, [setSearchQuery])
+
+  const clearActiveOption = useCallback(() => setActiveOption(null), [])
+
+  const getOptionElements = useCallback(
+    () => [...(popoverRef.current?.querySelectorAll<HTMLElement>('[data-option-key]') ?? [])],
+    [],
+  )
+
+  const moveActiveOption = useCallback(
+    (delta: number) => {
+      const options = getOptionElements()
+      if (options.length === 0) return
+      const current = options.findIndex((option) => option.dataset.optionKey === activeOption)
+      let next = Math.min(options.length - 1, Math.max(0, current + delta))
+      if (current === -1) next = delta > 0 ? 0 : options.length - 1
+      const option = options[next]
+      if (!option) return
+      setActiveOption(option.dataset.optionKey ?? null)
+      option.scrollIntoView({block: 'nearest'})
+    },
+    [activeOption, getOptionElements],
+  )
+
+  const selectActiveOption = useCallback(() => {
+    const option = getOptionElements().find((element) => element.dataset.optionKey === activeOption)
+    if (!option) return false
+    option.click()
+    return true
+  }, [activeOption, getOptionElements])
+
+  // Moving the mouse hands the highlight back to hover
+  const handleMouseMove = useCallback(() => {
+    if (activeOption !== null) setActiveOption(null)
+  }, [activeOption])
 
   const replaceReference = useCallback(
     (inputProps: InputProps) => {
@@ -191,7 +236,7 @@ export function LinkInput(props: LinkInputProps) {
       if (canOpenPopover) setPopoverOpen(true)
       onPathFocus(['url'])
     },
-    [canOpenPopover, onPathFocus, readOnly],
+    [canOpenPopover, onPathFocus, readOnly, setSearchQuery],
   )
 
   const handleSelect = useCallback(
@@ -219,8 +264,15 @@ export function LinkInput(props: LinkInputProps) {
       setSearchQuery,
       flattenedRoutes,
       replaceReference,
+      activeOptionId: activeOption ? getOptionId(popoverId, activeOption) : undefined,
+      moveActiveOption,
+      selectActiveOption,
     }),
     [
+      activeOption,
+      moveActiveOption,
+      selectActiveOption,
+      setSearchQuery,
       canOpenPopover,
       closePopover,
       flattenedRoutes,
@@ -239,8 +291,20 @@ export function LinkInput(props: LinkInputProps) {
         portal
         matchReferenceWidth
         content={
-          <Box id={popoverId} ref={popoverRef} onMouseDown={preventBlur}>
+          // Rich, virtualised rows can't be native <select>/<datalist> options, so this follows
+          // the ARIA combobox + listbox pattern
+          <Box
+            id={popoverId}
+            ref={popoverRef}
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
+            role="listbox"
+            onMouseDown={preventBlur}
+            onMouseMove={handleMouseMove}
+          >
             <VisualEditorNavigator
+              activeOption={activeOption}
+              optionIdPrefix={popoverId}
+              onNavigate={clearActiveOption}
               routes={routes}
               searchQuery={searchQuery}
               onClose={closePopover}
@@ -520,8 +584,11 @@ function URLInput(props: StringInputProps) {
   const pickerOpen = linkContext.canOpenPopover && linkContext.popoverOpen
   const urlElementProps = {
     ...elementProps,
+    'role': linkContext.canOpenPopover ? 'combobox' : undefined,
+    'aria-autocomplete': linkContext.canOpenPopover ? ('list' as const) : undefined,
     'aria-expanded': linkContext.canOpenPopover ? pickerOpen : undefined,
     'aria-controls': pickerOpen ? linkContext.popoverId : undefined,
+    'aria-activedescendant': pickerOpen ? linkContext.activeOptionId : undefined,
     'icon': getIcon(),
     'value': draftValue,
     'clearButton': draftValue && !readOnly ? {icon: CloseIcon} : false,
@@ -545,8 +612,20 @@ function URLInput(props: StringInputProps) {
       onChange(unset())
     },
     'onKeyDown': (event: KeyboardEvent<HTMLInputElement>) => {
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && linkContext.canOpenPopover) {
+        event.preventDefault()
+        if (linkContext.popoverOpen) {
+          linkContext.moveActiveOption(event.key === 'ArrowDown' ? 1 : -1)
+        } else {
+          linkContext.openPopover()
+        }
+        return
+      }
+
       if (event.key === 'Enter') {
         event.preventDefault()
+        // Enter picks the highlighted option (or opens the highlighted folder)
+        if (linkContext.popoverOpen && linkContext.selectActiveOption()) return
         commitDraftValue()
         linkContext.closePopover()
       }

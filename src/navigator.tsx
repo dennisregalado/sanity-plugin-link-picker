@@ -116,6 +116,17 @@ type NavigatorProps = {
   onClose?: () => void
   routes?: LinkRouteDefinition[]
   searchQuery?: string
+  /** Key of the option highlighted with the keyboard */
+  activeOption?: string | null
+  /** Prefix for option element ids, referenced by the input's aria-activedescendant */
+  optionIdPrefix?: string
+  /** Called when the visible options change because a folder was opened or closed */
+  onNavigate?: () => void
+}
+
+/** Element id of a picker option, referenced by the input's aria-activedescendant. */
+export function getOptionId(prefix: string, key: string): string {
+  return `${prefix}-option-${encodeURIComponent(key)}`
 }
 
 type MenuItem = {
@@ -276,9 +287,31 @@ type NavigationContextType = {
     _id?: string
   }) => void
   onClose?: () => void
+  activeOption: string | null
+  optionIdPrefix: string
 }
 
 const NavigationContext = createContext<NavigationContextType | null>(null)
+
+/**
+ * Props that make a row a selectable picker option: a stable key for keyboard navigation, the id
+ * used by aria-activedescendant, and the highlight when it's active.
+ */
+function useOptionProps(key: string) {
+  const {activeOption, optionIdPrefix} = useNavigation()
+  const active = activeOption === key
+  return {
+    'id': getOptionId(optionIdPrefix, key),
+    'role': 'option',
+    'aria-selected': active,
+    'data-option-key': key,
+    'selected': active,
+    'style': OPTION_STYLE,
+  }
+}
+
+/** Keeps options scrolled into view below the pinned header row */
+const OPTION_STYLE = {scrollMarginTop: VIRTUAL_ROW_ESTIMATE_SIZE}
 
 function useNavigation() {
   const context = useContext(NavigationContext)
@@ -292,9 +325,15 @@ function NavigationProvider({
   children,
   onClose,
   onSelect,
+  onNavigate,
+  activeOption,
+  optionIdPrefix,
 }: {
   children: React.ReactNode
   onClose?: () => void
+  onNavigate?: () => void
+  activeOption: string | null
+  optionIdPrefix: string
   onSelect?: (item: {
     label?: string
     href?: string
@@ -305,30 +344,59 @@ function NavigationProvider({
 }) {
   const [navigationStack, setNavigationStack] = useState<MenuItem[]>([])
 
-  const pushFolder = useCallback((folder: MenuItem) => {
-    setNavigationStack((prev) => [...prev, folder])
-  }, [])
+  const pushFolder = useCallback(
+    (folder: MenuItem) => {
+      setNavigationStack((prev) => [...prev, folder])
+      onNavigate?.()
+    },
+    [onNavigate],
+  )
 
   const popFolder = useCallback(() => {
     setNavigationStack((prev) => prev.slice(0, -1))
-  }, [])
+    onNavigate?.()
+  }, [onNavigate])
 
   const value = useMemo(
-    () => ({navigationStack, pushFolder, popFolder, onSelect, onClose}),
-    [navigationStack, onClose, onSelect, popFolder, pushFolder],
+    () => ({
+      navigationStack,
+      pushFolder,
+      popFolder,
+      onSelect,
+      onClose,
+      activeOption,
+      optionIdPrefix,
+    }),
+    [activeOption, navigationStack, onClose, onSelect, optionIdPrefix, popFolder, pushFolder],
   )
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
 }
 
-export function VisualEditorNavigator({onClose, onSelect, routes, searchQuery}: NavigatorProps) {
+const NO_ACTIVE_OPTION = null
+
+export function VisualEditorNavigator({
+  onClose,
+  onSelect,
+  routes,
+  searchQuery,
+  activeOption = NO_ACTIVE_OPTION,
+  optionIdPrefix = 'link-picker',
+  onNavigate,
+}: NavigatorProps) {
   const filteredRoutes = routes ?? NO_ROUTES
   const menuItems = useMemo(() => normalizeRoutes(filteredRoutes), [filteredRoutes])
   const documentTypes = useMemo(() => getReferenceTypesFromRoutes(filteredRoutes), [filteredRoutes])
   const staticRoutes = useMemo(() => getFlattenedLinkRoutes(filteredRoutes), [filteredRoutes])
 
   return (
-    <NavigationProvider onClose={onClose} onSelect={onSelect}>
+    <NavigationProvider
+      onClose={onClose}
+      onSelect={onSelect}
+      onNavigate={onNavigate}
+      activeOption={activeOption}
+      optionIdPrefix={optionIdPrefix}
+    >
       <NavigatorContent
         documentTypes={documentTypes}
         menuItems={menuItems}
@@ -651,12 +719,18 @@ function SearchResult({
 }) {
   if (item.type === 'document') {
     return (
-      <DocumentItem icon={DefaultIcon} item={item.document} perspectiveStack={perspectiveStack} />
+      <DocumentItem
+        icon={DefaultIcon}
+        item={item.document}
+        optionKey={`doc:${item.document._id}`}
+        perspectiveStack={perspectiveStack}
+      />
     )
   }
 
   return (
     <PageItem
+      optionKey={`${item.type}:${item.href}`}
       item={{
         href: item.href,
         icon: item.icon,
@@ -700,10 +774,17 @@ function Group({item}: {item: MenuItem}) {
 
 function MenuItemRow({item}: {item: MenuItem}) {
   const {pushFolder} = useNavigation()
+  const folderOptionProps = useOptionProps(`folder:${item.label}`)
 
   if (item.type === 'folder') {
     return (
-      <Button mode="bleed" padding={1} onClick={() => pushFolder(item)} width="fill">
+      <Button
+        {...folderOptionProps}
+        mode="bleed"
+        padding={1}
+        onClick={() => pushFolder(item)}
+        width="fill"
+      >
         <Flex style={{width: '100%'}} align="center" justify="space-between" gap={3}>
           <Box flex={1}>
             <SanityDefaultPreview
@@ -723,11 +804,12 @@ function MenuItemRow({item}: {item: MenuItem}) {
     return <Group item={item} />
   }
 
-  return <PageItem item={item} />
+  return <PageItem item={item} optionKey={`route:${item.href}`} />
 }
 
 function Folder({item}: {item: MenuItem}) {
   const {popFolder} = useNavigation()
+  const backOptionProps = useOptionProps('back')
   const perspective = usePerspective()
   const documentTypes = useMemo(
     () => (item.documentType ? [item.documentType] : []),
@@ -799,7 +881,14 @@ function Folder({item}: {item: MenuItem}) {
         renderItem={(row) => {
           if (row.type === 'back') {
             return (
-              <Button mode="bleed" paddingX={2} paddingY={3} width="fill" onClick={popFolder}>
+              <Button
+                {...backOptionProps}
+                mode="bleed"
+                paddingX={2}
+                paddingY={3}
+                width="fill"
+                onClick={popFolder}
+              >
                 <Flex align="center" justify="space-between" style={{width: '100%'}}>
                   <Flex align="center" gap={3}>
                     <ChevronLeftIcon />
@@ -829,6 +918,7 @@ function Folder({item}: {item: MenuItem}) {
             <DocumentItem
               icon={item.icon}
               item={row.document}
+              optionKey={`doc:${row.document._id}`}
               perspectiveStack={perspective.perspectiveStack}
             />
           )
@@ -962,11 +1052,13 @@ function ScrollableList<T>({
   )
 }
 
-function PageItem({item}: {item: MenuItem}) {
+function PageItem({item, optionKey}: {item: MenuItem; optionKey: string}) {
   const {onSelect} = useNavigation()
+  const optionProps = useOptionProps(optionKey)
 
   return (
     <Button
+      {...optionProps}
       onClick={() => {
         onSelect?.({
           label: item.omitLabelOnSelect ? undefined : item.label,
@@ -1017,9 +1109,11 @@ function usePreviewTitle(
 function DocumentItem({
   icon,
   item,
+  optionKey,
   perspectiveStack,
 }: {
   icon?: () => React.ReactNode
+  optionKey: string
   item: {
     title?: string
     label?: string
@@ -1033,10 +1127,12 @@ function DocumentItem({
   const schemaType = item._type ? schema.get(item._type) : undefined
   const fallbackMedia = item._id === 'default' ? DefaultIcon : icon
   const previewTitle = usePreviewTitle(item._id, schemaType, perspectiveStack)
+  const optionProps = useOptionProps(optionKey)
   const label = item.label || item.title || previewTitle
 
   return (
     <Button
+      {...optionProps}
       mode={'bleed'}
       width="fill"
       padding={1}
