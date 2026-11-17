@@ -57,6 +57,7 @@
     "@sanity/browserslist-config": "^1.0.5",
     "@sanity/pkg-utils": "^13.0.18",
     "@sanity/plugin-kit": "^10.1.1",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.2.17",
     "oxfmt": "^0.73.0",
     "oxlint": "^1.94.0",

@@ -22,8 +22,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           cache: npm
-          # plugin-kit 10 needs Node >= 24 for development
-          node-version: lts/*
+          # plugin-kit 10 needs Node >= 24; pinned to match publish.yml
+          node-version: 24
       - run: npm clean-install
       - run: npx oxfmt --check
       - run: npm run lint
