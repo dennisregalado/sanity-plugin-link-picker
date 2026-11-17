@@ -4,7 +4,6 @@ import {Box, Button, Card, Flex, Grid, Stack, Text, useClickOutsideEvent} from '
 import {Popover} from '@sanity/ui/popover'
 import {Tooltip} from '@sanity/ui/tooltip'
 import {
-  type ComponentProps,
   type ComponentType,
   createContext,
   type FocusEvent,
@@ -50,10 +49,6 @@ import {
   type StaticLinkRoute,
 } from './routes'
 import type {LinkInputProps} from './types'
-
-const SmallEditIcon = (props: ComponentProps<typeof EditIcon>) => (
-  <EditIcon {...props} style={{...props.style, display: 'block'}} />
-)
 
 type RouteConfig = LinkRouteDefinition[] | LinksPluginProps | undefined
 
@@ -529,12 +524,7 @@ function URLInput(props: StringInputProps) {
     'aria-controls': pickerOpen ? linkContext.popoverId : undefined,
     'icon': getIcon(),
     'value': draftValue,
-    'clearButton':
-      draftValue && !readOnly
-        ? {
-            icon: isValidLink(draftValue) ? SmallEditIcon : CloseIcon,
-          }
-        : false,
+    'clearButton': draftValue && !readOnly ? {icon: CloseIcon} : false,
     'onBlur': (event: FocusEvent<HTMLInputElement>) => {
       elementProps.onBlur(event)
       setFocused(false)
@@ -586,8 +576,4 @@ function URLInput(props: StringInputProps) {
   }
 
   return renderDefault({...props, elementProps: urlElementProps})
-}
-
-export function isValidLink(url: string | null | undefined): boolean {
-  return Boolean(normalizeLinkHref(url))
 }
