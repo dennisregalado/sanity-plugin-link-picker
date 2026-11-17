@@ -1,4 +1,14 @@
-import {type FormPatch, getPublishedId, set, setIfMissing, unset} from 'sanity'
+import {type FormPatch, set, setIfMissing, unset} from 'sanity'
+
+/**
+ * The published id for a document id: `drafts.x` and `versions.<release>.x` both become `x`.
+ * Same rules as Studio's own id handling, without depending on its internal `getPublishedId`.
+ */
+export function getPublishedDocumentId(id: string): string {
+  if (id.startsWith('versions.')) return id.split('.').slice(2).join('.')
+  if (id.startsWith('drafts.')) return id.slice('drafts.'.length)
+  return id
+}
 
 /** An item chosen in the link picker. */
 export interface LinkSelection {
@@ -31,7 +41,7 @@ export function buildSelectionPatches(typeName: string, selection: LinkSelection
           _type: 'reference',
           // Search hits can be draft (`drafts.`) or release (`versions.`) ids; references must
           // always point at the published id.
-          _ref: getPublishedId(selection._id),
+          _ref: getPublishedDocumentId(selection._id),
           _weak: true,
         },
         ['reference'],
