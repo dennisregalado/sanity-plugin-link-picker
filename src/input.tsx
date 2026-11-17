@@ -1,6 +1,6 @@
 import {CloseIcon} from '@sanity/icons/Close'
 import {EditIcon} from '@sanity/icons/Edit'
-import {Box, Button, Card, Flex, Grid, Text, useClickOutsideEvent} from '@sanity/ui'
+import {Box, Button, Card, Flex, Grid, Stack, Text, useClickOutsideEvent} from '@sanity/ui'
 import {Popover} from '@sanity/ui/popover'
 import {Tooltip} from '@sanity/ui/tooltip'
 import {
@@ -258,28 +258,29 @@ export function LinkInput(props: LinkInputProps) {
         animate
         open={canOpenPopover && popoverOpen}
       />
-      <Grid gridTemplateColumns={2} gapX={1} gapY={3}>
-        <Box>
-          {renderDefault({
-            ...props,
-            members: labelField,
-          })}
-        </Box>
-        <Box ref={setAnchorElement}>
-          {renderDefault({
-            ...props,
-            members: hasReference ? referenceField : urlField,
-          })}
-        </Box>
-        {extraMembers.length > 0 ? (
-          <Box gridColumn="full">
+      <Stack gap={6}>
+        <Grid gridTemplateColumns={2} gapX={1} gapY={3}>
+          <Box>
             {renderDefault({
               ...props,
-              members: extraMembers,
+              members: labelField,
             })}
           </Box>
-        ) : null}
-      </Grid>
+          <Box ref={setAnchorElement}>
+            {renderDefault({
+              ...props,
+              members: hasReference ? referenceField : urlField,
+            })}
+          </Box>
+        </Grid>
+        {/* Same spacing Studio uses between fields */}
+        {extraMembers.length > 0
+          ? renderDefault({
+              ...props,
+              members: extraMembers,
+            })
+          : null}
+      </Stack>
     </LinkContext.Provider>
   )
 }
