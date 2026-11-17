@@ -17,9 +17,7 @@
     "url": "git+https://github.com/dennisregalado/sanity-plugin-link-picker.git"
   },
   "files": [
-    "dist",
-    "CHANGELOG.md",
-    "MIGRATION.md"
+    "dist"
   ],
   "type": "module",
   "sideEffects": false,
@@ -43,7 +41,7 @@
     "format": "oxfmt",
     "link-watch": "plugin-kit link-watch",
     "lint": "oxlint",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "watch": "pkg-utils watch --strict"
