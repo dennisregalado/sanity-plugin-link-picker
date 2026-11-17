@@ -22,16 +22,10 @@ import React, {
 import {
   SanityDefaultPreview,
   SearchResultItemPreview,
-  createSearch,
-  getSearchableTypes,
-  removeDupes,
   useClient,
   usePerspective,
   useSchema,
-  useSearchMaxFieldDepth,
   useValuePreview,
-  useWorkspace,
-  DEFAULT_STUDIO_CLIENT_OPTIONS,
   type QueryParams,
   type SchemaType,
 } from 'sanity'
@@ -45,6 +39,7 @@ import {
   type LinkRouteDefinition,
   type StaticLinkRoute,
 } from './routes'
+import {buildDocumentSearchQuery, SEARCH_PAGE_SIZE} from './search'
 
 const DefaultIcon = () => <Text>✨</Text>
 
@@ -56,9 +51,9 @@ const VIRTUAL_LIST_OVERSCAN = 5
 
 const VIRTUAL_ROW_ESTIMATE_SIZE = 52
 
-const SEARCH_PAGE_SIZE = 25
-
 const SEARCH_DEBOUNCE_MS = 300
+
+const API_VERSION = '2025-02-19'
 
 const STICKY_ROW_BACKGROUND = 'var(--card-bg-color, var(--card-backdrop-color, canvas))'
 
@@ -389,8 +384,30 @@ type DocumentSearchOptions = {
   debounceMs?: number
   filter?: string
   filterParams?: QueryParams
-  /** Empty query + skip scoring = Studio document-list browse mode */
+  /** `browse` lists a folder newest-first instead of ranking by a search query. */
   mode?: 'search' | 'browse'
+}
+
+type Subscription = {unsubscribe: () => void}
+
+/** Pages fetch one extra row to know whether another page exists. */
+function toPage(rows: SearchDocument[]) {
+  return {hits: rows.slice(0, SEARCH_PAGE_SIZE), hasNextPage: rows.length > SEARCH_PAGE_SIZE}
+}
+
+type DocumentSearchState = {
+  /** Identifies the request these results belong to, so stale results are never shown. */
+  key: string | null
+  hits: SearchDocument[]
+  hasNextPage: boolean
+  loadingMore: boolean
+}
+
+const EMPTY_SEARCH_STATE: DocumentSearchState = {
+  key: null,
+  hits: [],
+  hasNextPage: false,
+  loadingMore: false,
 }
 
 function useDocumentSearch(
@@ -399,180 +416,101 @@ function useDocumentSearch(
   options: DocumentSearchOptions = {},
 ) {
   const {debounceMs = SEARCH_DEBOUNCE_MS, filter, filterParams, mode = 'search'} = options
-  const allowEmptyQuery = mode === 'browse'
-  const client = useClient(DEFAULT_STUDIO_CLIENT_OPTIONS)
+  const client = useClient({apiVersion: API_VERSION})
   const schema = useSchema()
-  const maxFieldDepth = useSearchMaxFieldDepth()
-  const {search: searchConfig} = useWorkspace()
-  const strategy = searchConfig?.strategy || 'groq2024'
+  const {perspectiveStack} = usePerspective()
 
-  const searchableTypes = useMemo(() => {
-    if (documentTypes.length === 0) {
-      return []
-    }
-
-    const allowed = new Set(documentTypes)
-    return getSearchableTypes(schema, documentTypes).filter((type) => allowed.has(type.name))
-  }, [documentTypes, schema])
-
-  const search = useMemo(() => {
-    if (searchableTypes.length === 0) {
-      return null
-    }
-
-    return createSearch(searchableTypes, client, {
-      tag: 'search.link-picker',
-      unique: true,
-      strategy,
-      maxDepth: maxFieldDepth,
-      ...(filter ? {filter, params: filterParams} : {}),
+  const request = useMemo(() => {
+    if (documentTypes.length === 0 || (mode === 'search' && !query)) return null
+    return buildDocumentSearchQuery({
+      mode,
+      query,
+      typeNames: documentTypes,
+      schemaTypes: documentTypes.map((name) => schema.get(name)),
+      filter,
+      filterParams,
     })
-  }, [client, filter, filterParams, maxFieldDepth, searchableTypes, strategy])
+  }, [documentTypes, filter, filterParams, mode, query, schema])
+  const requestKey = request ? JSON.stringify([request, perspectiveStack]) : null
 
-  const [hits, setHits] = useState<SearchDocument[]>([])
-  const [loading, setLoading] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [nextCursor, setNextCursor] = useState<string | undefined>()
-  const requestIdRef = useRef(0)
-  const loadingMoreRef = useRef(false)
-  const loadMoreSubscriptionRef = useRef<{unsubscribe: () => void} | null>(null)
-
-  const canSearch = Boolean(search && (allowEmptyQuery || query))
-
-  const searchOptions = useMemo(
-    () => ({
-      comments: [
-        allowEmptyQuery
-          ? 'findability-source: link-picker-folder'
-          : 'findability-source: link-picker',
-      ],
-      limit: SEARCH_PAGE_SIZE,
-      perspective: 'raw' as const,
-      ...(allowEmptyQuery
-        ? {
-            skipSortByScore: true,
-            sort: [{field: '_updatedAt', direction: 'desc' as const}],
-          }
-        : {}),
-    }),
-    [allowEmptyQuery],
+  const fetchPage = useCallback(
+    (start: number) => {
+      if (!request) return null
+      return client.observable.fetch<SearchDocument[]>(
+        request.query,
+        {...request.params, __start: start, __end: start + SEARCH_PAGE_SIZE + 1},
+        {perspective: perspectiveStack, tag: 'link-picker.search'},
+      )
+    },
+    [client, perspectiveStack, request],
   )
 
-  const searchTerms = useMemo(
-    () => ({
-      query: allowEmptyQuery ? '' : query,
-      types: searchableTypes,
-    }),
-    [allowEmptyQuery, query, searchableTypes],
-  )
+  const [state, setState] = useState<DocumentSearchState>(EMPTY_SEARCH_STATE)
+  const loadMoreSubscription = useRef<Subscription | null>(null)
 
   useEffect(() => {
-    loadMoreSubscriptionRef.current?.unsubscribe()
-    loadMoreSubscriptionRef.current = null
+    const page$ = fetchPage(0)
+    if (!page$) return undefined
 
-    if (!canSearch) {
-      requestIdRef.current += 1
-      setHits([])
-      setNextCursor(undefined)
-      setLoading(false)
-      setLoadingMore(false)
-      loadingMoreRef.current = false
-      return
-    }
-
-    const requestId = ++requestIdRef.current
-    setLoading(true)
-    setLoadingMore(false)
-    loadingMoreRef.current = false
-    setNextCursor(undefined)
-
-    let subscription: {unsubscribe: () => void} | undefined
+    let subscription: Subscription | undefined
     const run = () => {
-      subscription = search!(searchTerms, searchOptions).subscribe({
-        next: (result) => {
-          if (requestId !== requestIdRef.current) {
-            return
-          }
-
-          setHits(removeDupes(result.hits.map(({hit}) => hit)) as SearchDocument[])
-          setNextCursor(result.nextCursor)
-          setLoading(false)
-        },
-        error: () => {
-          if (requestId !== requestIdRef.current) {
-            return
-          }
-
-          setHits([])
-          setNextCursor(undefined)
-          setLoading(false)
-        },
+      subscription = page$.subscribe({
+        next: (rows) => setState({key: requestKey, ...toPage(rows), loadingMore: false}),
+        error: () => setState({...EMPTY_SEARCH_STATE, key: requestKey}),
       })
     }
-
-    const timer = debounceMs > 0 ? window.setTimeout(run, debounceMs) : (run(), undefined)
+    const timer = debounceMs > 0 ? window.setTimeout(run, debounceMs) : undefined
+    if (timer === undefined) run()
 
     return () => {
-      if (timer !== undefined) {
-        window.clearTimeout(timer)
-      }
+      window.clearTimeout(timer)
       subscription?.unsubscribe()
+      loadMoreSubscription.current?.unsubscribe()
     }
-  }, [canSearch, debounceMs, search, searchOptions, searchTerms])
+  }, [debounceMs, fetchPage, requestKey])
 
-  useEffect(() => {
-    return () => {
-      loadMoreSubscriptionRef.current?.unsubscribe()
-      loadMoreSubscriptionRef.current = null
-    }
-  }, [])
+  const isCurrent = requestKey !== null && state.key === requestKey
+  const hits = isCurrent ? state.hits : EMPTY_HITS
 
   const loadMore = useCallback(() => {
-    if (!search || !canSearch || !nextCursor || loading || loadingMoreRef.current) {
-      return
-    }
+    if (!isCurrent || !state.hasNextPage || state.loadingMore) return
+    const page$ = fetchPage(state.hits.length)
+    if (!page$) return
 
-    const requestId = requestIdRef.current
-    const cursor = nextCursor
-    loadingMoreRef.current = true
-    setLoadingMore(true)
-
-    loadMoreSubscriptionRef.current?.unsubscribe()
-    loadMoreSubscriptionRef.current = search(searchTerms, {
-      ...searchOptions,
-      cursor,
-    }).subscribe({
-      next: (result) => {
-        if (requestId !== requestIdRef.current) {
-          return
-        }
-
-        setHits(
-          (previous) =>
-            removeDupes([...previous, ...result.hits.map(({hit}) => hit)]) as SearchDocument[],
+    setState((previous) => ({...previous, loadingMore: true}))
+    loadMoreSubscription.current?.unsubscribe()
+    loadMoreSubscription.current = page$.subscribe({
+      next: (rows) => {
+        const page = toPage(rows)
+        setState((previous) =>
+          previous.key === requestKey
+            ? {
+                key: requestKey,
+                hits: uniqueById([...previous.hits, ...page.hits]),
+                hasNextPage: page.hasNextPage,
+                loadingMore: false,
+              }
+            : previous,
         )
-        setNextCursor(result.nextCursor)
-        loadingMoreRef.current = false
-        setLoadingMore(false)
       },
-      error: () => {
-        if (requestId !== requestIdRef.current) {
-          return
-        }
-
-        loadingMoreRef.current = false
-        setLoadingMore(false)
-      },
+      error: () => setState((previous) => ({...previous, loadingMore: false})),
     })
-  }, [canSearch, loading, nextCursor, search, searchOptions, searchTerms])
+  }, [fetchPage, isCurrent, requestKey, state.hasNextPage, state.hits.length, state.loadingMore])
 
   return {
     hits,
-    loading,
-    loadingMore,
-    hasNextPage: Boolean(nextCursor),
+    loading: requestKey !== null && !isCurrent,
+    loadingMore: isCurrent && state.loadingMore,
+    hasNextPage: isCurrent && state.hasNextPage,
     loadMore,
   }
+}
+
+const EMPTY_HITS: SearchDocument[] = []
+
+function uniqueById(documents: SearchDocument[]): SearchDocument[] {
+  const seen = new Set<string>()
+  return documents.filter((document) => !seen.has(document._id) && Boolean(seen.add(document._id)))
 }
 
 function SearchResults({
