@@ -4,15 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
-## [2.0.0] - Unreleased
+## [2.1.0] - 2026-11-17
 
-Requires Sanity Studio `^6.10.0` and React `^19.2`. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-20).
+Requires Sanity Studio `^6.10.0` and React `^19.2`. Coming from 2.0.0, see
+[MIGRATION.md](./MIGRATION.md#upgrading-from-20-to-21): no config or schema changes are needed, but
+check for links saved with draft ids.
 
 ### Changed
 
-- Studio UI moved to `@sanity/ui` 4 and `@sanity/icons` 5, the versions Sanity 6.10+ ships. They are
-  dependencies with Studio-matching ranges, so npm shares the Studio's copy.
-- Peer dependencies: `sanity` `^6.10.0` (first release on `@sanity/ui` 4) and `react` `^19.2`.
+- Peer dependencies: `sanity` `^6.10.0` (was `^6`) and `react` `^19.2` (was `^18 || ^19`). Sanity
+  6.10.0 is the first release on `@sanity/ui` 4, so 2.0.0 never worked correctly on 6.0–6.9, and
+  Sanity 6 requires React 19.2.
+- `@sanity/ui` and `@sanity/icons` are dependencies (were peer dependencies) with ranges matching what
+  Sanity ships, as Sanity's plugin tooling requires, so npm shares the Studio's copy.
 - Document search uses public GROQ (`text::query`) in the Studio's current perspective instead of
   Studio-internal search APIs. Results are ranked slightly differently from Studio's global search.
 - Document folders the link schema can't reference (field-level routes for types not passed to
@@ -55,6 +59,15 @@ Requires Sanity Studio `^6.10.0` and React `^19.2`. See [MIGRATION.md](./MIGRATI
 - Reference previews crashed outside the Structure and Presentation tools ("Pane is missing router
   context"), and missed documents that only exist in a content release.
 
+## [2.0.0] - 2026-11-16
+
+Requires Sanity Studio 6. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-2x).
+
+### Changed
+
+- Studio UI moved to `@sanity/ui` 4 and `@sanity/icons` 5 (as peer dependencies).
+- Peer dependency `sanity` is `^6` (was `^5 || ^6`).
+
 ## [1.1.1]
 
 - Refined document search.
@@ -63,3 +76,6 @@ Requires Sanity Studio `^6.10.0` and React `^19.2`. See [MIGRATION.md](./MIGRATI
 
 - Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
   `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).
+
+[2.1.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/releases/tag/v2.0.0

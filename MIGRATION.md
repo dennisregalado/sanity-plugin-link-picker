@@ -1,11 +1,28 @@
 # Migration guide
 
-- [Upgrading from 1.x to 2.0](#upgrading-from-1x-to-20): Sanity 6 required
+- [Upgrading from 2.0 to 2.1](#upgrading-from-20-to-21): Sanity 6.10 and React 19.2 required
+- [Upgrading from 1.x to 2.x](#upgrading-from-1x-to-2x): Sanity 6 required
 - [Migrating from `sanity-plugin-link` to 1.1](#migrating-from-sanity-plugin-link-to-11): package rename and API changes
 
-## Upgrading from 1.x to 2.0
+## Upgrading from 2.0 to 2.1
 
-2.0 moves the plugin's Studio UI to `@sanity/ui` 4 and `@sanity/icons` 5, the versions Sanity 6 ships. The plugin's API, the `link` schema type and stored document values (`label`, `url`, `reference`) are unchanged. You don't need to change your Studio config, schemas, queries or content.
+2.1 is a drop-in upgrade: the plugin's API, the `link` schema type and stored values are unchanged, and you don't need to change your Studio config, schemas or queries. See [CHANGELOG.md](./CHANGELOG.md) for everything that changed.
+
+- **Requirements:** Sanity `^6.10.0` and React `^19.2`. 2.0 claimed `sanity@^6`, but it uses `@sanity/ui` 4, which Sanity only ships from 6.10.0.
+- **`@sanity/ui` and `@sanity/icons` are no longer peer dependencies.** They're regular dependencies with ranges matching Sanity, so npm still installs a single shared copy. Nothing to do unless you pinned old majors yourself (see step 3 below).
+- **Check for links saved with draft ids.** 2.0 and earlier stored the draft's id (`drafts.…`) in `reference._ref` when an editor picked a document that had unpublished changes. Those references break once the draft is published. 2.1 always stores the published id. Find affected links (adjust the field path to your schema) and re-pick or patch them:
+
+```groq
+*[defined(link.reference._ref) && link.reference._ref match "drafts.*"]{_id, "ref": link.reference._ref}
+```
+
+```sh
+npm install sanity@^6.10 sanity-plugin-link-picker@^2.1
+```
+
+## Upgrading from 1.x to 2.x
+
+2.x moves the plugin's Studio UI to `@sanity/ui` 4 and `@sanity/icons` 5, the versions Sanity 6.10+ ships. The plugin's API, the `link` schema type and stored document values (`label`, `url`, `reference`) are unchanged. You don't need to change your Studio config, schemas, queries or content.
 
 ### What changed
 
@@ -14,11 +31,7 @@
 - **`@sanity/ui` and `@sanity/icons` are dependencies with Studio-matching ranges** (`^4.0.3` / `^5.2.1`), as Sanity's plugin tooling recommends. npm deduplicates them with the copies `sanity` installs, so the plugin uses your Studio's own copy. You don't need to add them.
 - **Fixes that affect stored data.** Selecting a document from a draft or release now stores the published id in `reference._ref` (earlier versions could store `drafts.…` or `versions.…` ids, which break once the draft is published). Selections patch `label`, `url` and `reference` individually instead of replacing the whole link, so custom fields survive. Clearing `url` or switching between `url` and `reference` now removes the other field instead of setting it to `null`.
 
-To find links saved with a draft id by earlier versions (adjust the field path to your schema):
-
-```groq
-*[defined(link.reference._ref) && link.reference._ref match "drafts.*"]{_id, "ref": link.reference._ref}
-```
+To find links saved with a draft id by earlier versions, see [Upgrading from 2.0 to 2.1](#upgrading-from-20-to-21).
 
 ### 1. Upgrade your Studio to Sanity 6.10 or later
 

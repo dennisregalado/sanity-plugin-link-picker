@@ -49,7 +49,7 @@ npm install sanity-plugin-link-picker
 
 - Sanity 6.10 is the first release on `@sanity/ui` 4, which the plugin's UI uses. On an older 6.x, upgrade Sanity or stay on 1.x.
 - `@sanity/ui` and `@sanity/icons` are regular dependencies with ranges that match what Sanity ships, as Sanity's plugin tooling recommends, so npm installs a single shared copy. You don't need to add them yourself.
-- On Sanity 5? Stay on the 1.x line: `npm install sanity-plugin-link-picker@^1`. Upgrading from 1.x? See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-20).
+- On Sanity 5? Stay on the 1.x line: `npm install sanity-plugin-link-picker@^1`. Upgrading from 1.x? See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-2x).
 
 ## Usage
 
@@ -492,15 +492,15 @@ The test studio needs a Sanity project: copy `dev/.env.example` to `dev/.env.dev
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
-Upgrading from 1.x to 2.0 (Sanity 6 required), or from `sanity-plugin-link` / the earlier `linkPlugin` / `linkRoute` API? See [MIGRATION.md](./MIGRATION.md).
+Upgrading from 2.0, from 1.x (Sanity 6 required), or from `sanity-plugin-link` / the earlier `linkPlugin` / `linkRoute` API? See [MIGRATION.md](./MIGRATION.md).
 
 ## Releasing
 
 npm releases are published by GitHub Actions ([`publish.yml`](.github/workflows/publish.yml)) using npm trusted publishing. Nobody runs `npm publish` locally.
 
-1. In your PR, bump `"version"` in `package.json` (and `package-lock.json`, e.g. `npm version 2.1.0 --no-git-tag-version`).
-2. Merge the PR. CI ([`ci.yml`](.github/workflows/ci.yml)) runs the typecheck and build on every PR and push to `main`.
-3. Publish a GitHub release whose tag is `v<version>` (e.g. `v2.1.0`), targeting `main`. The workflow checks the tag matches `package.json`, reruns the checks via `prepublishOnly`, and publishes with provenance.
+1. In your PR, bump `"version"` in `package.json` (and `package-lock.json`, e.g. `npm version 2.1.0 --no-git-tag-version`) and add a [CHANGELOG.md](./CHANGELOG.md) entry.
+2. Merge the PR. CI ([`ci.yml`](.github/workflows/ci.yml)) checks formatting and runs lint, typecheck, tests and the build on every PR and push to `main`.
+3. Publish a GitHub release whose tag is `v<version>` (e.g. `v2.1.0`), targeting `main`. The workflow checks the tag matches `package.json`, reruns the typecheck and build via `prepublishOnly`, and publishes with provenance.
 
 ## License
 
