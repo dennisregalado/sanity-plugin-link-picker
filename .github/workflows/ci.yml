@@ -1,18 +1,39 @@
 name: CI
+
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   check:
+    name: Lint, typecheck, test & build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
           cache: npm
-      - run: npm ci
-      # No lint step yet: `npm run lint` fails on existing code. There's no test script.
+          # plugin-kit 10 needs Node >= 24; pinned to match publish.yml
+          node-version: 24
+      - run: npm clean-install
+      - run: npx oxfmt --check
+      - run: npm run lint
       - run: npm run typecheck
+      - run: npm test
+      # Runs plugin-kit verify-package and pkg-utils build --strict --check
       - run: npm run build
+      # The packed package.json must not point at src/ (see scripts/publish-exports.mjs)
+      - run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          tar -xzf "$RUNNER_TEMP"/*.tgz -C "$RUNNER_TEMP" package/package.json
+          node scripts/publish-exports.mjs check "$RUNNER_TEMP/package/package.json"
+          git diff --exit-code package.json

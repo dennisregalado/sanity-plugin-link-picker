@@ -1,4 +1,10 @@
 {
   "extends": "./tsconfig.settings",
-  "include": ["./src", "./package.config.ts"]
+  "include": ["./src", "./dev", "./package.config.ts", "./oxfmt.config.ts", "./oxlint.config.ts"],
+  "compilerOptions": {
+    "paths": {
+      // The dev studio imports the plugin by name; resolve it to the source
+      "sanity-plugin-link-picker": ["./src/index.ts"]
+    }
+  }
 }

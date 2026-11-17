@@ -1,60 +1,149 @@
-import React from 'react'
-import {set, InputProps, ObjectInputProps, type SchemaType, unset, useClient} from 'sanity'
-import {Button, Text, Flex, Grid, useClickOutsideEvent, Box, Card} from '@sanity/ui'
-import {Popover} from '@sanity/ui/popover'
-import {Tooltip} from '@sanity/ui/tooltip'
 import {CloseIcon} from '@sanity/icons/Close'
 import {EditIcon} from '@sanity/icons/Edit'
-import {useState, useMemo, useRef, createContext, useContext, useEffect} from 'react'
+import {Box, Button, Card, Flex, Grid, Stack, Text, useClickOutsideEvent} from '@sanity/ui'
+import {Popover} from '@sanity/ui/popover'
+import {Tooltip} from '@sanity/ui/tooltip'
 import {
-  VisualEditorNavigator,
+  type ComponentType,
+  createContext,
+  type FocusEvent,
+  type ChangeEvent,
+  type KeyboardEvent,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import {
+  type InputProps,
+  type ObjectMember,
+  type ReferenceSchemaType,
+  type ReferenceValue,
+  SanityDefaultPreview,
+  type SchemaType,
+  SearchResultItemPreview,
+  set,
+  type StringInputProps,
+  unset,
+  useDocumentPreviewStore,
+  usePerspective,
+  useTranslation,
+} from 'sanity'
+import {type RouterPanes, usePaneRouter} from 'sanity/structure'
+
+import {normalizeLinkHref} from './href'
+import {linkPickerLocaleNamespace} from './i18n'
+import {VisualEditorNavigator, getOptionId, getSystemLinkIcon, normalizeLinkIcon} from './navigator'
+import {buildSelectionPatches, type LinkSelection} from './patches'
+import {
+  applyReferenceTypes,
   getFlattenedLinkRoutes,
   getReferenceTypesFromRoutes,
   getReferenceTypesFromSchemaType,
-  getSystemLinkIcon,
-  normalizeLinkIcon,
-  normalizeLinkHref,
-} from './navigator'
-import {SanityDefaultPreview, SearchResultItemPreview, usePerspective} from 'sanity'
-import {usePaneRouter} from 'sanity/structure'
-import {randomKey} from '@sanity/util/content'
+  isProduction,
+  type LinkRouteDefinition,
+  type LinksPluginProps,
+  type StaticLinkRoute,
+} from './routes'
 import type {LinkInputProps} from './types'
-import type {LinkRouteDefinition, LinksPluginProps, StaticLinkRoute} from './navigator'
-const SmallEditIcon = (props: React.ComponentProps<typeof EditIcon>) => (
-  <EditIcon {...props} style={{...props.style, display: 'block'}} />
-)
-const sanityApiVersion = '2025-02-27'
+
 type RouteConfig = LinkRouteDefinition[] | LinksPluginProps | undefined
+
+const NO_ROUTES: LinkRouteDefinition[] = []
+
+const NO_TYPES: SchemaType[] = []
 
 function resolveRoutes(routes: RouteConfig): LinkRouteDefinition[] {
   if (!routes) {
-    return []
+    return NO_ROUTES
   }
 
   return Array.isArray(routes) ? routes : routes.routes
 }
 
-const LinkContext = createContext<{
-  onChange: ObjectInputProps['onChange']
+const BUILT_IN_FIELD_NAMES = new Set(['label', 'url', 'reference'])
+
+/** Field name a member belongs to, including `error` members for invalid field values. */
+function getMemberFieldName(member: ObjectMember): string | undefined {
+  if (member.kind === 'field') return member.name
+  if (member.kind === 'error') return member.fieldName
+  return undefined
+}
+
+function withInputComponent(member: ObjectMember, input: ComponentType<InputProps>): ObjectMember {
+  if (member.kind !== 'field') {
+    return member
+  }
+
+  return {
+    ...member,
+    field: {
+      ...member.field,
+      schemaType: {
+        ...member.field.schemaType,
+        components: {input},
+      },
+    },
+  }
+}
+
+type LinkContextValue = {
   openPopover: () => void
   closePopover: () => void
   canOpenPopover: boolean
+  popoverOpen: boolean
+  popoverId: string
   searchQuery: string
   setSearchQuery: (query: string) => void
   flattenedRoutes: StaticLinkRoute[]
-  replaceReference?: (inputProps: InputProps) => void
-} | null>(null)
+  replaceReference: (inputProps: InputProps) => void
+  /** Element id of the keyboard-highlighted option, for aria-activedescendant */
+  activeOptionId: string | undefined
+  moveActiveOption: (delta: number) => void
+  /** Selects the keyboard-highlighted option. Returns false when nothing is highlighted. */
+  selectActiveOption: () => boolean
+}
+
+const LinkContext = createContext<LinkContextValue | null>(null)
+
+function useLinkContext(): LinkContextValue {
+  const context = useContext(LinkContext)
+  if (!context) {
+    throw new Error('Link picker inputs must be rendered inside LinkInput')
+  }
+  return context
+}
 
 export function LinkInput(props: LinkInputProps) {
+  const {members, onChange, onPathFocus, readOnly, renderDefault, schemaType, value} = props
   const [popoverOpen, setPopoverOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQueryState] = useState('')
+  const [activeOption, setActiveOption] = useState<string | null>(null)
+  const [anchorElement, setAnchorElement] = useState<HTMLDivElement | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const routes = resolveRoutes(props.schemaType.options?.routes || props.pluginOptions?.routes)
-  const menu = useMemo(() => ({routes}), [routes])
-  const flattenedRoutes = useMemo(() => getFlattenedLinkRoutes(menu.routes), [menu])
-  const linkReferenceTypes = useMemo(() => getReferenceTypesFromRoutes(menu.routes), [menu])
-  const canOpenPopover = flattenedRoutes.length > 0 || linkReferenceTypes.length > 0
+  const popoverId = useId()
+
+  const routeConfig = schemaType.options?.routes || props.pluginOptions?.routes
+  const configuredRoutes = useMemo(() => resolveRoutes(routeConfig), [routeConfig])
+
+  // Only offer document folders the schema's `reference` field can store. A field-level route
+  // for an undeclared type would otherwise write a `reference` the schema doesn't accept.
+  const schemaReferenceTypes = useMemo(
+    () => getReferenceTypesFromSchemaType(schemaType),
+    [schemaType],
+  )
+  const routes = useMemo(
+    () => applyReferenceTypes(configuredRoutes, schemaReferenceTypes),
+    [configuredRoutes, schemaReferenceTypes],
+  )
+  useWarnAboutUndeclaredDocumentTypes(configuredRoutes, schemaReferenceTypes)
+
+  const flattenedRoutes = useMemo(() => getFlattenedLinkRoutes(routes), [routes])
+  const hasDocumentRoutes = useMemo(() => getReferenceTypesFromRoutes(routes).length > 0, [routes])
+  const canOpenPopover = !readOnly && (flattenedRoutes.length > 0 || hasDocumentRoutes)
 
   useClickOutsideEvent(
     () => {
@@ -62,123 +151,164 @@ export function LinkInput(props: LinkInputProps) {
         setPopoverOpen(false)
       }
     },
-    () => [popoverRef.current, containerRef.current],
+    () => [popoverRef.current, anchorElement],
   )
 
-  const hasReference = useMemo(() => {
-    return Boolean((props.value as {reference?: unknown} | undefined)?.reference)
-  }, [props.value])
-
-  const referenceTypes = useMemo(() => {
-    const schemaReferenceTypes = getReferenceTypesFromSchemaType(props.schemaType)
-    return schemaReferenceTypes.length ? schemaReferenceTypes : linkReferenceTypes
-  }, [linkReferenceTypes, props.schemaType])
+  const hasReference = Boolean(value?.reference)
 
   const labelField = useMemo(() => {
-    return props.members.filter((member: any) => member.name === 'label')
-  }, [props.members])
+    return members.filter((member) => getMemberFieldName(member) === 'label')
+  }, [members])
 
   const referenceField = useMemo(() => {
-    return props.members
-      .filter((member: any) => member.name === 'reference')
-      .map((member: any) => ({
-        ...member,
-        field: {
-          ...member.field,
-          schemaType: {
-            ...member.field.schemaType,
-            components: {
-              input: ReferencePreviewInput,
-            },
-          },
-        },
-      }))
-  }, [props.members])
+    return members
+      .filter((member) => getMemberFieldName(member) === 'reference')
+      .map((member) => withInputComponent(member, ReferencePreviewInput))
+  }, [members])
 
   const urlField = useMemo(() => {
-    return props.members
-      .filter((member: any) => member.name === 'url')
-      .map((member: any) => ({
-        ...member,
-        field: {
-          ...member.field,
-          schemaType: {
-            ...member.field.schemaType,
-            components: {
-              input: URLInput,
-            },
-          },
-        },
-      }))
-  }, [props.members])
+    return members
+      .filter((member) => getMemberFieldName(member) === 'url')
+      .map((member) => withInputComponent(member, URLInputComponent))
+  }, [members])
+
+  // Fields added through `linkPicker(routes, {fields})`, plus any fieldsets/decorations.
+  const extraMembers = useMemo(() => {
+    return members.filter((member) => {
+      const fieldName = getMemberFieldName(member)
+      return !fieldName || !BUILT_IN_FIELD_NAMES.has(fieldName)
+    })
+  }, [members])
+
+  const openPopover = useCallback(() => {
+    if (canOpenPopover) setPopoverOpen(true)
+  }, [canOpenPopover])
+
+  const setSearchQuery = useCallback((query: string) => {
+    setSearchQueryState(query)
+    setActiveOption(null)
+  }, [])
+
+  const closePopover = useCallback(() => {
+    setPopoverOpen(false)
+    setSearchQuery('')
+  }, [setSearchQuery])
+
+  const clearActiveOption = useCallback(() => setActiveOption(null), [])
+
+  const getOptionElements = useCallback(
+    () => [...(popoverRef.current?.querySelectorAll<HTMLElement>('[data-option-key]') ?? [])],
+    [],
+  )
+
+  const moveActiveOption = useCallback(
+    (delta: number) => {
+      const options = getOptionElements()
+      if (options.length === 0) return
+      const current = options.findIndex((option) => option.dataset.optionKey === activeOption)
+      let next = Math.min(options.length - 1, Math.max(0, current + delta))
+      if (current === -1) next = delta > 0 ? 0 : options.length - 1
+      const option = options[next]
+      if (!option) return
+      setActiveOption(option.dataset.optionKey ?? null)
+      option.scrollIntoView({block: 'nearest'})
+    },
+    [activeOption, getOptionElements],
+  )
+
+  const selectActiveOption = useCallback(() => {
+    const option = getOptionElements().find((element) => element.dataset.optionKey === activeOption)
+    if (!option) return false
+    option.click()
+    return true
+  }, [activeOption, getOptionElements])
+
+  // Moving the mouse hands the highlight back to hover
+  const handleMouseMove = useCallback(() => {
+    if (activeOption !== null) setActiveOption(null)
+  }, [activeOption])
+
+  const replaceReference = useCallback(
+    (inputProps: InputProps) => {
+      if (readOnly || inputProps.readOnly) return
+      inputProps.onChange(unset())
+      setSearchQuery('')
+      if (canOpenPopover) setPopoverOpen(true)
+      onPathFocus(['url'])
+    },
+    [canOpenPopover, onPathFocus, readOnly, setSearchQuery],
+  )
+
+  const handleSelect = useCallback(
+    (selected: LinkSelection) => {
+      if (readOnly) return
+      onChange(buildSelectionPatches(schemaType.name, selected))
+      closePopover()
+    },
+    [closePopover, onChange, readOnly, schemaType.name],
+  )
+
+  const preventBlur = useCallback((event: {preventDefault: () => void}) => {
+    // Keep focus in the URL input while clicking inside the picker
+    event.preventDefault()
+  }, [])
+
+  const contextValue = useMemo<LinkContextValue>(
+    () => ({
+      openPopover,
+      closePopover,
+      canOpenPopover,
+      popoverOpen,
+      popoverId,
+      searchQuery,
+      setSearchQuery,
+      flattenedRoutes,
+      replaceReference,
+      activeOptionId: activeOption ? getOptionId(popoverId, activeOption) : undefined,
+      moveActiveOption,
+      selectActiveOption,
+    }),
+    [
+      activeOption,
+      moveActiveOption,
+      selectActiveOption,
+      setSearchQuery,
+      canOpenPopover,
+      closePopover,
+      flattenedRoutes,
+      openPopover,
+      popoverId,
+      popoverOpen,
+      replaceReference,
+      searchQuery,
+    ],
+  )
 
   return (
-    <LinkContext.Provider
-      value={{
-        onChange: props.onChange,
-        openPopover: () => {
-          if (canOpenPopover) setPopoverOpen(true)
-        },
-        closePopover: () => {
-          setPopoverOpen(false)
-          setSearchQuery('')
-        },
-        canOpenPopover,
-        searchQuery,
-        setSearchQuery,
-        flattenedRoutes,
-        replaceReference: (inputProps) => {
-          inputProps.onChange(unset())
-          setSearchQuery('')
-          if (canOpenPopover) setPopoverOpen(true)
-          props.onPathFocus?.(['url'])
-        },
-      }}
-    >
+    <LinkContext.Provider value={contextValue}>
       <Popover
-        referenceElement={containerRef.current}
+        referenceElement={anchorElement}
         portal
         matchReferenceWidth
         content={
+          // Rich, virtualised rows can't be native <select>/<datalist> options, so this follows
+          // the ARIA combobox + listbox pattern
           <Box
+            id={popoverId}
             ref={popoverRef}
-            onMouseDown={(event) => {
-              event.preventDefault()
-            }}
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
+            role="listbox"
+            onMouseDown={preventBlur}
+            onMouseMove={handleMouseMove}
           >
             <VisualEditorNavigator
-              {...menu}
-              referenceTypes={referenceTypes}
+              activeOption={activeOption}
+              optionIdPrefix={popoverId}
+              onNavigate={clearActiveOption}
+              routes={routes}
               searchQuery={searchQuery}
-              onClose={() => {
-                setSearchQuery('')
-                setPopoverOpen(false)
-              }}
-              onSelect={(selected) => {
-                const key = props.value?._key || randomKey(12)
-
-                props.onChange(
-                  set({
-                    _type: 'link',
-                    _key: key,
-                    label: selected?.label || null,
-                    ...(selected._id
-                      ? {
-                          reference: {
-                            _type: 'reference',
-                            _ref: selected._id,
-                            _weak: true,
-                          },
-                        }
-                      : {
-                          url: selected.href || null,
-                          reference: null,
-                        }),
-                  }),
-                )
-                setSearchQuery('')
-                setPopoverOpen(false)
-              }}
+              onClose={closePopover}
+              onSelect={handleSelect}
             />
           </Box>
         }
@@ -187,143 +317,187 @@ export function LinkInput(props: LinkInputProps) {
         animate
         open={canOpenPopover && popoverOpen}
       />
-      <Grid gridTemplateColumns={2} gapX={1} gapY={3}>
-        <Box>
-          {props.renderDefault({
-            ...props,
-            members: labelField,
-          })}
-        </Box>
-        <Box ref={containerRef}>
-          {hasReference
-            ? props.renderDefault({
-                ...props,
-                members: referenceField,
-              })
-            : props.renderDefault({
-                ...props,
-                members: urlField,
-              })}
-        </Box>
-      </Grid>
+      <Stack gap={6}>
+        <Grid gridTemplateColumns={2} gapX={1} gapY={3}>
+          <Box>
+            {renderDefault({
+              ...props,
+              members: labelField,
+            })}
+          </Box>
+          <Box ref={setAnchorElement}>
+            {renderDefault({
+              ...props,
+              members: hasReference ? referenceField : urlField,
+            })}
+          </Box>
+        </Grid>
+        {/* Same spacing Studio uses between fields */}
+        {extraMembers.length > 0
+          ? renderDefault({
+              ...props,
+              members: extraMembers,
+            })
+          : null}
+      </Stack>
     </LinkContext.Provider>
   )
 }
 
+const warnedConfigs = new WeakSet<LinkRouteDefinition[]>()
+
+/** Development warning for document folders the field's schema can't store. */
+function useWarnAboutUndeclaredDocumentTypes(
+  routes: LinkRouteDefinition[],
+  schemaReferenceTypes: string[],
+) {
+  useEffect(() => {
+    if (isProduction() || warnedConfigs.has(routes)) return
+    const undeclared = getReferenceTypesFromRoutes(routes).filter(
+      (type) => !schemaReferenceTypes.includes(type),
+    )
+    if (undeclared.length === 0) return
+    warnedConfigs.add(routes)
+    console.warn(
+      `[sanity-plugin-link-picker] Hiding document routes for ${undeclared.map((type) => `"${type}"`).join(', ')}: ` +
+        'pass them to linkPicker() so the link schema can reference them.',
+    )
+  }, [routes, schemaReferenceTypes])
+}
+
+function isReferenceType(schemaType: SchemaType): schemaType is ReferenceSchemaType {
+  return 'to' in schemaType && Array.isArray(schemaType.to)
+}
+
+/** Resolves the referenced document's type, live and in the current perspective. */
+function useReferencedDocumentType(
+  documentId: string | undefined,
+  allowedTypes: SchemaType[],
+): string | null {
+  const documentPreviewStore = useDocumentPreviewStore()
+  const {perspectiveStack} = usePerspective()
+  const onlyType = allowedTypes.length === 1 ? (allowedTypes[0]?.name ?? null) : null
+  const [resolved, setResolved] = useState<{id: string; type: string | null} | null>(null)
+
+  useEffect(() => {
+    if (!documentId || onlyType) return undefined
+    const subscription = documentPreviewStore
+      .observeDocumentTypeFromId(documentId, undefined, perspectiveStack)
+      .subscribe((type) => setResolved({id: documentId, type: type ?? null}))
+    return () => subscription.unsubscribe()
+  }, [documentId, documentPreviewStore, onlyType, perspectiveStack])
+
+  if (!documentId) return null
+  if (onlyType) return onlyType
+  return resolved?.id === documentId ? resolved.type : null
+}
+
 function ReferencePreviewInput(props: InputProps) {
-  const linkContext = useContext(LinkContext)
-  const client = useClient({apiVersion: sanityApiVersion})
+  const linkContext = useLinkContext()
+  const {t} = useTranslation(linkPickerLocaleNamespace)
   const perspective = usePerspective()
-  const {ReferenceChildLink, groupIndex, routerPanesState} = usePaneRouter()
-  const documentId = (props.value as {_ref?: string} | undefined)?._ref
-  const referenceSchemaType = props.schemaType as typeof props.schemaType & {
-    to?: SchemaType[]
-  }
-  const allowedTypes = referenceSchemaType.to || []
-  const allowedTypeNames = allowedTypes
-    .map((type) => type.name)
-    .filter(Boolean)
-    .join('|')
-  const [documentType, setDocumentType] = useState<string | null>(
-    allowedTypes.length === 1 && allowedTypes[0]?.name ? allowedTypes[0].name : null,
-  )
+  const {ReferenceChildLink, groupIndex, groupLength, routerPanesState} = usePaneRouter()
+  // Outside the Structure and Presentation tools there is no pane router to open references in
+  const hasPaneRouter = groupLength > 0
+  const reference: Partial<ReferenceValue> | undefined =
+    props.value && typeof props.value === 'object' && '_ref' in props.value
+      ? props.value
+      : undefined
+  const documentId = reference?._ref
+  const allowedTypes = isReferenceType(props.schemaType) ? props.schemaType.to : NO_TYPES
+  const documentType = useReferencedDocumentType(documentId, allowedTypes)
   const refType = documentType
     ? allowedTypes.find((toType) => toType.name === documentType)
     : undefined
   const linkTarget =
     documentId && documentType && refType ? {documentId, documentType, refType} : null
-  const referencePaneOpen = linkTarget
-    ? isReferencePaneOpen(routerPanesState, groupIndex, linkTarget)
-    : false
-  const preview = linkTarget ? (
-    <SearchResultItemPreview
-      documentId={linkTarget.documentId}
-      documentType={linkTarget.documentType}
-      layout="compact"
-      perspective={perspective.perspectiveStack}
-      schemaType={linkTarget.refType}
-      showBadge={false}
-    />
-  ) : documentId ? (
-    <Box style={{width: '100%'}}>
-      <SanityDefaultPreview isPlaceholder layout="compact" />
-    </Box>
-  ) : null
+  const referencePaneOpen =
+    linkTarget && hasPaneRouter
+      ? isReferencePaneOpen(routerPanesState, groupIndex, linkTarget)
+      : false
 
-  useEffect(() => {
-    if (!documentId) {
-      setDocumentType(null)
-      return
-    }
+  let preview = null
+  if (linkTarget) {
+    preview = (
+      <SearchResultItemPreview
+        documentId={linkTarget.documentId}
+        documentType={linkTarget.documentType}
+        layout="compact"
+        perspective={perspective.perspectiveStack}
+        schemaType={linkTarget.refType}
+        showBadge={false}
+      />
+    )
+  } else if (documentId) {
+    preview = (
+      <Box style={{width: '100%'}}>
+        <SanityDefaultPreview isPlaceholder layout="compact" />
+      </Box>
+    )
+  }
 
-    if (allowedTypes.length === 1 && allowedTypes[0]?.name) {
-      setDocumentType(allowedTypes[0].name)
-      return
-    }
+  const previewButton = (
+    <Button
+      as="span"
+      mode={referencePaneOpen ? 'default' : 'bleed'}
+      padding={0}
+      tone={referencePaneOpen ? 'primary' : 'default'}
+      width="fill"
+      style={{clipPath: 'inset(3px round 2px)'}}
+    >
+      {preview}
+    </Button>
+  )
 
-    let cancelled = false
+  let target = (
+    <Button
+      disabled
+      mode="bleed"
+      padding={0}
+      width="fill"
+      style={{clipPath: 'inset(3px round 2px)'}}
+    >
+      {preview}
+    </Button>
+  )
+  if (linkTarget && hasPaneRouter) {
+    target = (
+      <ReferenceChildLink
+        documentId={linkTarget.documentId}
+        documentType={linkTarget.documentType}
+        parentRefPath={props.path}
+      >
+        {previewButton}
+      </ReferenceChildLink>
+    )
+  } else if (linkTarget) {
+    target = previewButton
+  }
 
-    client
-      .fetch<string | null>('*[_id == $documentId][0]._type', {documentId})
-      .then((type) => {
-        if (!cancelled) setDocumentType(type)
-      })
-      .catch(() => {
-        if (!cancelled) setDocumentType(null)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [allowedTypeNames, client, documentId])
+  const handleReplace = useCallback(() => linkContext.replaceReference(props), [linkContext, props])
 
   return (
     <Card border radius={2} overflow="hidden">
       <Flex align="center" style={{height: 33}}>
         <Box flex={1} style={{minWidth: 0}}>
-          {linkTarget ? (
-            <ReferenceChildLink
-              documentId={linkTarget.documentId}
-              documentType={linkTarget.documentType}
-              parentRefPath={props.path}
-            >
-              <Button
-                as="span"
-                mode={referencePaneOpen ? 'default' : 'bleed'}
-                padding={0}
-                tone={referencePaneOpen ? 'primary' : 'default'}
-                width="fill"
-                style={{clipPath: 'inset(3px round 2px)'}}
-              >
-                {preview}
-              </Button>
-            </ReferenceChildLink>
-          ) : (
-            <Button
-              disabled
-              mode="bleed"
-              padding={0}
-              width="fill"
-              style={{clipPath: 'inset(3px round 2px)'}}
-            >
-              {preview}
-            </Button>
-          )}
+          {target}
         </Box>
         <Tooltip
           animate
           content={
             <Text size={1} weight="medium">
-              Replace reference
+              {t('reference.replace')}
             </Text>
           }
           placement="top"
         >
           <Button
+            aria-label={t('reference.replace')}
             style={{clipPath: 'inset(3px round 2px)'}}
+            disabled={props.readOnly}
             icon={EditIcon}
             mode="bleed"
-            onClick={() => linkContext?.replaceReference?.(props)}
+            onClick={handleReplace}
           />
         </Tooltip>
       </Flex>
@@ -332,86 +506,68 @@ function ReferencePreviewInput(props: InputProps) {
 }
 
 function isReferencePaneOpen(
-  routerPanesState: unknown,
+  routerPanesState: RouterPanes,
   groupIndex: number,
   target: {
     documentId: string
     documentType: string
   },
 ) {
-  const nextPaneGroup = Array.isArray(routerPanesState) ? routerPanesState[groupIndex + 1] : null
-  const siblings = Array.isArray(nextPaneGroup)
-    ? nextPaneGroup
-    : nextPaneGroup
-      ? [nextPaneGroup]
-      : []
+  const siblings = routerPanesState[groupIndex + 1] ?? []
 
-  return siblings.some((sibling) => {
-    const pane = sibling as {
-      id?: string
-      params?: {
-        id?: string
-        type?: string
-      }
-      payload?: {
-        id?: string
-        type?: string
-      }
-    }
-    const id = pane.id || pane.params?.id || pane.payload?.id
-    const type = pane.params?.type || pane.payload?.type
+  return siblings.some((pane) => {
+    const payload: {id?: unknown; type?: unknown} =
+      pane.payload && typeof pane.payload === 'object' ? pane.payload : {}
+    const id = pane.id || pane.params?.id || payload.id
+    const type = pane.params?.type || payload.type
 
     return id === target.documentId && (!type || type === target.documentType)
   })
 }
 
-function URLInput(props: InputProps) {
-  const linkContext = useContext(LinkContext)
-  const [draftValue, setDraftValue] = useState(typeof props.value === 'string' ? props.value : '')
+function URLInputComponent(props: InputProps) {
+  // The `url` field is always a string field
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return <URLInput {...(props as StringInputProps)} />
+}
+
+function URLInput(props: StringInputProps) {
+  const linkContext = useLinkContext()
+  const {elementProps, onChange, readOnly, renderDefault, value} = props
+  const savedValue = typeof value === 'string' ? value : ''
+  const [draftValue, setDraftValue] = useState(savedValue)
   const [isFocused, setFocused] = useState(false)
-  const previousValueRef = useRef(typeof props.value === 'string' ? props.value : '')
-  const flattenedItems = linkContext?.flattenedRoutes || []
-  const matchedMenuItem = useMemo(() => {
-    if (!draftValue) return null
-    return flattenedItems.find((item) => item.path === draftValue)
-  }, [draftValue, flattenedItems])
+  const [previousValue, setPreviousValue] = useState(savedValue)
+  const {flattenedRoutes} = linkContext
 
-  useEffect(() => {
-    const nextValue = typeof props.value === 'string' ? props.value : ''
-    const valueChanged = previousValueRef.current !== nextValue
-
-    previousValueRef.current = nextValue
-
-    if (
-      !isFocused ||
-      (valueChanged && (!linkContext?.searchQuery || normalizeLinkHref(draftValue) === nextValue))
-    ) {
-      setDraftValue(nextValue)
+  // Follow external changes to the saved value (selection in the picker, other editors), unless
+  // the user is in the middle of typing a search.
+  if (previousValue !== savedValue) {
+    setPreviousValue(savedValue)
+    if (!isFocused || !linkContext.searchQuery || normalizeLinkHref(draftValue) === savedValue) {
+      setDraftValue(savedValue)
     }
-  }, [draftValue, isFocused, linkContext?.searchQuery, props.value])
-
-  if (!linkContext) {
-    throw new Error('URLInput must be used within LinkContext')
+  } else if (!isFocused && draftValue !== savedValue) {
+    setDraftValue(savedValue)
   }
 
   const commitDraftValue = () => {
     const nextValue = draftValue.trim()
     const nextHref = normalizeLinkHref(nextValue) || nextValue
-    const currentValue = typeof props.value === 'string' ? props.value : ''
 
     linkContext.setSearchQuery('')
 
-    if (nextHref === currentValue) {
+    if (nextHref === savedValue) {
       return
     }
 
-    props.onChange(nextValue ? set(nextHref) : set(null))
+    onChange(nextValue ? set(nextHref) : unset())
   }
 
   function getIcon() {
     const normalizedHref = normalizeLinkHref(draftValue)
     const matchedRoute = normalizedHref
-      ? flattenedItems.find((item) => item.path === normalizedHref)
+      ? flattenedRoutes.find((item) => item.path === normalizedHref)
       : null
 
     if (matchedRoute?.icon) {
@@ -425,60 +581,78 @@ function URLInput(props: InputProps) {
     return undefined
   }
 
-  return props.renderDefault({
-    ...props,
-    elementProps: {
-      ...(props.elementProps as any),
-      icon: getIcon(),
-      value: draftValue,
-      clearButton: draftValue
-        ? {
-            icon: isValidLink(draftValue) ? SmallEditIcon : CloseIcon,
-          }
-        : false,
-      onBlur: (event: any) => {
-        props.elementProps?.onBlur?.(event)
-        setFocused(false)
+  const pickerOpen = linkContext.canOpenPopover && linkContext.popoverOpen
+  const urlElementProps = {
+    ...elementProps,
+    'role': linkContext.canOpenPopover ? 'combobox' : undefined,
+    'aria-autocomplete': linkContext.canOpenPopover ? ('list' as const) : undefined,
+    'aria-expanded': linkContext.canOpenPopover ? pickerOpen : undefined,
+    'aria-controls': pickerOpen ? linkContext.popoverId : undefined,
+    'aria-activedescendant': pickerOpen ? linkContext.activeOptionId : undefined,
+    'icon': getIcon(),
+    'value': draftValue,
+    'clearButton': draftValue && !readOnly ? {icon: CloseIcon} : false,
+    'onBlur': (event: FocusEvent<HTMLInputElement>) => {
+      elementProps.onBlur(event)
+      setFocused(false)
+      commitDraftValue()
+      linkContext.closePopover()
+    },
+    'onChange': (event: ChangeEvent<HTMLInputElement>) => {
+      const nextValue = event.currentTarget.value
+      setDraftValue(nextValue)
+      if (linkContext.canOpenPopover) {
+        linkContext.setSearchQuery(nextValue)
+      }
+    },
+    'onClear': () => {
+      if (readOnly) return
+      linkContext.closePopover()
+      setDraftValue('')
+      onChange(unset())
+    },
+    'onKeyDown': (event: KeyboardEvent<HTMLInputElement>) => {
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && linkContext.canOpenPopover) {
+        event.preventDefault()
+        if (linkContext.popoverOpen) {
+          linkContext.moveActiveOption(event.key === 'ArrowDown' ? 1 : -1)
+        } else {
+          linkContext.openPopover()
+        }
+        return
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        // Enter picks the highlighted option (or opens the highlighted folder)
+        if (linkContext.popoverOpen && linkContext.selectActiveOption()) return
         commitDraftValue()
-      },
-      onChange: (event: any) => {
-        const nextValue = event.currentTarget.value
-        setDraftValue(nextValue)
-        if (linkContext.canOpenPopover) {
-          linkContext.setSearchQuery(nextValue)
-        }
-      },
-      onClear: () => {
         linkContext.closePopover()
-        setDraftValue('')
-        linkContext.setSearchQuery('')
-        props.onChange(set(null))
-      },
-      onKeyDown: (event: any) => {
-        ;(props.elementProps as any)?.onKeyDown?.(event)
+      }
 
-        if (event.key === 'Enter') {
-          event.preventDefault()
-          commitDraftValue()
-          linkContext.closePopover()
-        }
-      },
-      onFocus: () => {
-        setFocused(true)
-        if (!linkContext.canOpenPopover) {
-          return
-        }
+      if (event.key === 'Escape' && linkContext.popoverOpen) {
+        // Close the picker without also closing the surrounding dialog or pane
+        event.preventDefault()
+        event.stopPropagation()
+        linkContext.closePopover()
+      }
+    },
+    'onFocus': (event: FocusEvent<HTMLInputElement>) => {
+      // Lets Studio track focus and presence for this field
+      elementProps.onFocus(event)
+      setFocused(true)
+      if (!linkContext.canOpenPopover || readOnly) {
+        return
+      }
 
-        const normalizedHref = normalizeLinkHref(draftValue)
-        const isSavedHref = normalizedHref === draftValue.trim()
+      const normalizedHref = normalizeLinkHref(draftValue)
+      const isSavedHref = normalizedHref === draftValue.trim()
+      const matchesRoute = flattenedRoutes.some((item) => item.path === draftValue)
 
-        linkContext.setSearchQuery(matchedMenuItem || isSavedHref ? '' : draftValue)
-        linkContext.openPopover()
-      },
-    } as any,
-  })
-}
+      linkContext.setSearchQuery(matchesRoute || isSavedHref ? '' : draftValue)
+      linkContext.openPopover()
+    },
+  }
 
-export function isValidLink(url: string | null | undefined): boolean {
-  return Boolean(normalizeLinkHref(url))
+  return renderDefault({...props, elementProps: urlElementProps})
 }
