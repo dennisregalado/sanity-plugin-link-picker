@@ -26,8 +26,10 @@ import {
   usePerspective,
   useSchema,
   useTranslation,
-  useValuePreview,
+  useDocumentPreviewStore,
+  type PerspectiveStack,
   type QueryParams,
+  type SchemaType,
 } from 'sanity'
 
 import {getSystemLinkType, normalizeLinkHref, type SystemLinkType} from './href'
@@ -641,7 +643,7 @@ function SearchResult({
   perspectiveStack,
 }: {
   item: SearchResultItem
-  perspectiveStack?: string[]
+  perspectiveStack?: PerspectiveStack
 }) {
   if (item.type === 'document') {
     return (
@@ -983,6 +985,31 @@ function PageItem({item}: {item: MenuItem}) {
   )
 }
 
+/** The document's preview title, used as the link label when it's selected. */
+function usePreviewTitle(
+  documentId: string | undefined,
+  schemaType: SchemaType | undefined,
+  perspectiveStack: PerspectiveStack | undefined,
+): string | undefined {
+  const documentPreviewStore = useDocumentPreviewStore()
+  const [resolved, setResolved] = useState<{id: string; title: string | undefined} | null>(null)
+
+  useEffect(() => {
+    if (!documentId || !schemaType) return undefined
+    const subscription = documentPreviewStore
+      .observeForPreview({_id: documentId, _type: schemaType.name}, schemaType, {
+        perspective: perspectiveStack,
+      })
+      .subscribe(({snapshot}) => {
+        const title = snapshot?.title
+        setResolved({id: documentId, title: typeof title === 'string' ? title : undefined})
+      })
+    return () => subscription.unsubscribe()
+  }, [documentId, documentPreviewStore, perspectiveStack, schemaType])
+
+  return resolved && resolved.id === documentId ? resolved.title : undefined
+}
+
 function DocumentItem({
   icon,
   item,
@@ -995,19 +1022,13 @@ function DocumentItem({
     _type?: string
     _id?: string
   }
-  perspectiveStack?: string[]
+  perspectiveStack?: PerspectiveStack
 }) {
   const {onSelect} = useNavigation()
   const schema = useSchema()
   const schemaType = item._type ? schema.get(item._type) : undefined
   const fallbackMedia = item._id === 'default' ? DefaultIcon : icon
-  const preview = useValuePreview({
-    enabled: Boolean(schemaType && item._id && item._type),
-    schemaType,
-    value: item._id && item._type ? {_id: item._id, _type: item._type} : undefined,
-    perspectiveStack,
-  })
-  const previewTitle = typeof preview?.value?.title === 'string' ? preview.value.title : undefined
+  const previewTitle = usePreviewTitle(item._id, schemaType, perspectiveStack)
   const label = item.label || item.title || previewTitle
 
   return (
