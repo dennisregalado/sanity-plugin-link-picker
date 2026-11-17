@@ -15,7 +15,7 @@ When document routes are configured, it also adds:
 
 The plugin stays intentionally unopinionated. It stores the link data, then lets your GROQ projection and frontend decide how references turn into URLs.
 
-On the Studio side, the input prevents invalid URL values. When `url` is present, it is already normalized as a valid internal path, query string, hash, external URL, `mailto:`, or `tel:` link.
+On the Studio side, the input normalizes what editors type (`example.com` becomes `https://example.com`, an email address becomes `mailto:…`) and validation flags anything that isn't a valid path, query string, hash, `http(s)` URL, `mailto:` or `tel:` link. Like any Sanity validation error, an invalid value blocks publishing but can still exist in drafts or be written through the API, so treat `url` as untrusted on the frontend (see [Rendering links safely](#rendering-links-safely)).
 
 ## Why this design
 
@@ -40,10 +40,15 @@ Either way you get validation at edit time and a uniform `{label, url}` on the f
 npm install sanity-plugin-link-picker
 ```
 
-### Requirements
+### Compatibility
 
-- **Sanity Studio v6** (`sanity@^6`). The plugin imports from the `@sanity/ui` 4 and `@sanity/icons` 5 subpaths (`@sanity/ui/popover`, `@sanity/icons/Edit`, …), which don't exist in the versions bundled with Sanity 5.
-- `@sanity/ui` (`^4`) and `@sanity/icons` (`^5`) are peer dependencies, so the plugin uses your Studio's own copy. `sanity` already installs both; you don't need to add them yourself.
+| Plugin | Sanity Studio | React   | `@sanity/ui` / `@sanity/icons`                      |
+| ------ | ------------- | ------- | --------------------------------------------------- |
+| 2.x    | `^6.10.0`     | `^19.2` | 4 / 5, shared with your Studio's copy               |
+| 1.x    | `^5 \|\| ^6`  | `^19`   | 3 / 3, its own copy (a second copy on Sanity 6.10+) |
+
+- Sanity 6.10 is the first release on `@sanity/ui` 4, which the plugin's UI uses. On an older 6.x, upgrade Sanity or stay on 1.x.
+- `@sanity/ui` and `@sanity/icons` are regular dependencies with ranges that match what Sanity ships, as Sanity's plugin tooling recommends, so npm installs a single shared copy. You don't need to add them yourself.
 - On Sanity 5? Stay on the 1.x line: `npm install sanity-plugin-link-picker@^1`. Upgrading from 1.x? See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-20).
 
 ## Usage
@@ -183,7 +188,7 @@ export default defineConfig({
 })
 ```
 
-You can also override routes on a single field. Field-level overrides can narrow or customize the picker, but document routes still need to be declared at the plugin level so Sanity can define accepted reference types.
+You can also override routes on a single field. `options.routes` is typed, so your editor autocompletes it and flags typos. Field-level overrides can narrow or customize the picker, but document routes still need to be declared at the plugin level so Sanity can define accepted reference types. Document folders whose type isn't declared there are hidden, with a warning in development.
 
 ```ts
 defineField({
@@ -196,7 +201,20 @@ defineField({
 })
 ```
 
-Document routes control which reference types the picker can select. Static routes write to `url`; document selections write to `reference`.
+Document routes control which reference types the picker can select. Static routes write to `url`; document selections write to `reference`. Selecting an item patches only `label`, `url` and `reference`: custom fields are left alone, and a label you've typed is only replaced when the selected route or document has a title.
+
+Searching uses the Studio's current perspective, so drafts, published documents and content releases are all found, and references always store the published document id.
+
+### Route helpers
+
+| Helper                                     | Arguments                                                | Description                                                                                                                                                                      |
+| ------------------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `route(title, path, options?)`             | `options.icon`                                           | A static path. Selecting it stores `path` in `url` and `title` in `label`.                                                                                                       |
+| `group(title, routes, options?)`           | `options.icon`                                           | A labelled section of routes. Groups can nest.                                                                                                                                   |
+| `documents(title, documentType, options?)` | `options.icon`, `options.filter`, `options.filterParams` | A browsable, searchable folder of documents, newest first. `filter` is a GROQ expression, for example `'defined(slug.current)'`. Selecting a document stores a weak `reference`. |
+| `defineLinkMenu(routes)`                   |                                                          | Returns `{routes}` and warns in development about paths that don't start with `/`. Can be passed to `linkPicker()` or `options.routes`.                                          |
+
+Icons can be any component (for example from `@sanity/icons`), a React element, or a string such as an emoji.
 
 ## Extending the Field
 
@@ -228,6 +246,68 @@ linkPicker([route('Home', '/'), documents('Pages', 'page')], {
 ```
 
 Keep the default fields stable when possible. Most projects can model extra frontend behavior in GROQ or in their link resolver without changing the stored shape.
+
+### Plugin options
+
+`linkPicker(routes?, options?)`
+
+| Argument / option | Type                                        | Default        | Description                                                                                                                   |
+| ----------------- | ------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `routes`          | `LinkRouteDefinition[] \| LinksPluginProps` | `[]`           | Routes, groups and document folders shown in the picker. Document folder types become the `reference` field's accepted types. |
+| `options.fields`  | `FieldDefinition[]`                         | `[]`           | Extra fields appended after `label`, `url` and `reference`.                                                                   |
+| `options.icon`    | component or element                        | none           | Icon for the `link` type, shown in array item previews.                                                                       |
+| `options.preview` | `PreviewConfig`                             | label as title | Preview configuration for the `link` type.                                                                                    |
+
+Field options (`options` on a `type: 'link'` field):
+
+| Option   | Type                                        | Description                                      |
+| -------- | ------------------------------------------- | ------------------------------------------------ |
+| `routes` | `LinkRouteDefinition[] \| LinksPluginProps` | Replaces the plugin-level routes for this field. |
+
+## Rendering links safely
+
+`url` holds what editors entered, normalized. Validation rejects `javascript:` and other unsupported schemes, and protocol-relative URLs (`//example.com`) are stored as `https://`. But values written through the API, or drafts with validation errors, skip the Studio, so check the scheme before rendering:
+
+```ts
+const SAFE_URL = /^(https?:|mailto:|tel:|\/(?!\/)|#|\?)/i
+
+function safeHref(url?: string | null) {
+  return url && SAFE_URL.test(url.trim()) ? url.trim() : undefined
+}
+```
+
+## Localization
+
+All Studio UI strings are registered as an `en-US` locale bundle in the `sanity-plugin-link-picker` namespace. To translate them, register a bundle for another locale with the same namespace and keys:
+
+```ts
+import {defineLocaleResourceBundle} from 'sanity'
+import {linkPickerLocaleNamespace} from 'sanity-plugin-link-picker'
+
+const norwegian = defineLocaleResourceBundle({
+  locale: 'nb-NO',
+  namespace: linkPickerLocaleNamespace,
+  resources: {
+    'search.searching': 'Søker...',
+    'search.result-count_one': '{{count}} treff',
+    'search.result-count_other': '{{count}} treff',
+    'search.result-count-more': '{{count}}+ treff',
+    'search.no-results': 'Ingen treff',
+    'folder.back': 'Tilbake',
+    'reference.replace': 'Bytt referanse',
+  },
+})
+
+// defineConfig({i18n: {bundles: [norwegian]}, ...})
+```
+
+The `LinkPickerLocaleResourceKeys` type lists every key.
+
+## Accessibility
+
+- The picker opens when the URL input is focused. <kbd>Esc</kbd> closes it without closing the surrounding pane or dialog, and leaving the input closes it too.
+- The input exposes the picker's open state (`aria-expanded`, `aria-controls`), and result counts are announced to screen readers.
+- Read-only fields never open the picker.
 
 ## Migrating From Custom Link Types
 
@@ -365,17 +445,50 @@ For the full workflow (validating documents, staging datasets, defensive code, r
 
 ```ts
 import {
-  defineLinkMenu,
-  documents,
-  group,
+  // Plugin and route helpers
   linkPicker,
   route,
+  group,
+  documents,
+  defineLinkMenu,
+  // Localization
+  linkPickerLocaleNamespace,
+  linkPickerUsEnglishLocaleBundle,
+  type LinkPickerLocaleResourceKeys,
+  // Types
+  type LinkValue,
+  type LinkReferenceValue,
+  type LinkDefinition,
   type LinkFieldOptions,
   type LinkFieldPluginOptions,
   type LinkRouteDefinition,
-  type LinkValue,
+  type StaticLinkRoute,
+  type LinkRouteGroup,
+  type LinkDocumentFolder,
+  type LinkIconInput,
+  type LinksPluginProps,
+  type LinkSchemaType,
+  type LinkInputProps,
 } from 'sanity-plugin-link-picker'
 ```
+
+## Development
+
+Requires Node.js 24 or later (for `@sanity/plugin-kit` 10; the published package supports Node 20.19+).
+
+```sh
+npm install
+npm run dev        # test studio in dev/, loads the plugin from src/
+npm run lint       # oxlint (type-aware)
+npm run format     # oxfmt
+npm run typecheck
+npm test           # vitest
+npm run build      # plugin-kit verify-package + pkg-utils build --strict
+```
+
+The test studio needs a Sanity project: copy `dev/.env.example` to `dev/.env.development` and fill it in. Opening the demo document doesn't write anything; filled-in examples come from `initialValue`.
+
+See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 Upgrading from 1.x to 2.0 (Sanity 6 required), or from `sanity-plugin-link` / the earlier `linkPlugin` / `linkRoute` API? See [MIGRATION.md](./MIGRATION.md).
 

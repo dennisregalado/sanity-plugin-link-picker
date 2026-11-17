@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to this project are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
+[Semantic Versioning](https://semver.org/).
+
+## [2.0.0] - Unreleased
+
+Requires Sanity Studio `^6.10.0` and React `^19.2`. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to-20).
+
+### Changed
+
+- Studio UI moved to `@sanity/ui` 4 and `@sanity/icons` 5, the versions Sanity 6.10+ ships. They are
+  dependencies with Studio-matching ranges, so npm shares the Studio's copy.
+- Peer dependencies: `sanity` `^6.10.0` (first release on `@sanity/ui` 4) and `react` `^19.2`.
+- Document search uses public GROQ (`text::query`) in the Studio's current perspective instead of
+  Studio-internal search APIs. Results are ranked slightly differently from Studio's global search.
+- Document folders the link schema can't reference (field-level routes for types not passed to
+  `linkPicker()`) are hidden, with a development warning, instead of writing an invalid reference.
+- Protocol-relative URLs (`//example.com`) are stored as `https://example.com` and treated as
+  external; values containing backslashes are rejected.
+- The plugin is named `sanity-plugin-link-picker` (was `link-picker`).
+
+### Added
+
+- `linkPicker()` accepts the result of `defineLinkMenu()`.
+- `options.routes` on `type: 'link'` fields is typed (autocomplete and typo checking) through
+  `IntrinsicDefinitions`; new `LinkDefinition` type.
+- `en-US` locale bundle for all UI strings (`linkPickerLocaleNamespace`,
+  `linkPickerUsEnglishLocaleBundle`, `LinkPickerLocaleResourceKeys`).
+- <kbd>Esc</kbd> and leaving the input close the picker; `aria-expanded`/`aria-controls` on the
+  input; result counts announced to screen readers; accessible name on the "Replace reference"
+  button.
+- `LinkIconInput` is exported.
+
+### Fixed
+
+- Selecting a document that has a draft or release version stored that version's id
+  (`drafts.…`/`versions.…`) as `_ref`; it now stores the published id.
+- Fields added with `options.fields` were never rendered in the form.
+- Selecting an item replaced the whole link object, wiping custom fields, adding a stray `_key` to
+  non-array links and clearing the label for typed URLs. Selections now patch only `label`, `url`
+  and `reference`.
+- Read-only link fields could still be changed through the picker, clear and replace buttons.
+- The URL input didn't report focus to Studio, so presence and focus tracking didn't work.
+- Clearing the URL stored `null` instead of removing the field.
+- Reference previews crashed outside the Structure and Presentation tools ("Pane is missing router
+  context"), and missed documents that only exist in a content release.
+
+## [1.1.1]
+
+- Refined document search.
+
+## [1.1.0]
+
+- Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
+  `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).

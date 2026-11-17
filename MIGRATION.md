@@ -9,15 +9,23 @@
 
 ### What changed
 
-- **Sanity 6 is required.** The `sanity` peer dependency is now `^6`; 1.x accepted `^5 || ^6`. The plugin imports from `@sanity/ui` 4 and `@sanity/icons` 5 subpaths (`@sanity/ui/popover`, `@sanity/ui/tooltip`, `@sanity/icons/Edit`, …), which don't exist in the `@sanity/ui` 3 / `@sanity/icons` 3 that Sanity 5 uses.
-- **`@sanity/ui` and `@sanity/icons` are peer dependencies.** The plugin no longer installs its own copies; it uses your Studio's: `@sanity/ui@^4` and `@sanity/icons@^5`. `sanity` already depends on both, so you don't need to add them.
+- **Sanity 6.10 or later is required.** The `sanity` peer dependency is now `^6.10.0`; 1.x accepted `^5 || ^6`. The plugin uses `@sanity/ui` 4 and `@sanity/icons` 5 (including subpaths such as `@sanity/ui/popover` and `@sanity/icons/Edit`). Sanity 6.10.0 is the first release that ships `@sanity/ui` 4; Sanity 5 and 6.0–6.9 use `@sanity/ui` 3.
+- **React 19.2 or later.** The `react` peer dependency is `^19.2`, matching what Sanity 6 requires.
+- **`@sanity/ui` and `@sanity/icons` are dependencies with Studio-matching ranges** (`^4.0.3` / `^5.2.1`), as Sanity's plugin tooling recommends. npm deduplicates them with the copies `sanity` installs, so the plugin uses your Studio's own copy. You don't need to add them.
+- **Fixes that affect stored data.** Selecting a document from a draft or release now stores the published id in `reference._ref` (earlier versions could store `drafts.…` or `versions.…` ids, which break once the draft is published). Selections patch `label`, `url` and `reference` individually instead of replacing the whole link, so custom fields survive. Clearing `url` or switching between `url` and `reference` now removes the other field instead of setting it to `null`.
 
-### 1. Upgrade your Studio to Sanity 6
+To find links saved with a draft id by earlier versions (adjust the field path to your schema):
 
-If you're still on Sanity 5, upgrade first (see Sanity's own upgrade notes for anything else that changed in your Studio):
+```groq
+*[defined(link.reference._ref) && link.reference._ref match "drafts.*"]{_id, "ref": link.reference._ref}
+```
+
+### 1. Upgrade your Studio to Sanity 6.10 or later
+
+If you're on Sanity 5 or an earlier 6.x, upgrade first (see Sanity's own upgrade notes for anything else that changed in your Studio):
 
 ```sh
-npm install sanity@^6
+npm install sanity@^6.10
 ```
 
 ### 2. Upgrade the plugin
@@ -28,7 +36,7 @@ npm install sanity-plugin-link-picker@^2
 
 ### 3. Check for direct `@sanity/ui` / `@sanity/icons` pins
 
-If your Studio's own `package.json` lists `@sanity/ui` or `@sanity/icons` at an older major (for example `@sanity/ui@^3`), upgrade them to `^4` / `^5`, or remove them if your code doesn't import them. An older pin conflicts with the plugin's peer range and can leave two copies installed. Confirm there's one copy of each:
+If your Studio's own `package.json` lists `@sanity/ui` or `@sanity/icons` at an older major (for example `@sanity/ui@^3`), upgrade them to `^4` / `^5`, or remove them if your code doesn't import them. An older pin can leave two copies installed. Confirm there's one copy of each:
 
 ```sh
 npm ls @sanity/ui @sanity/icons
@@ -44,7 +52,7 @@ npm install sanity-plugin-link-picker@^1
 
 ### Checklist
 
-- [ ] Studio is on `sanity@^6`
+- [ ] Studio is on `sanity@^6.10` and React 19.2+
 - [ ] Install `sanity-plugin-link-picker@^2`
 - [ ] Remove or upgrade any direct `@sanity/ui@^3` / `@sanity/icons@^3` pins
 - [ ] `npm ls @sanity/ui @sanity/icons` shows one copy of each
