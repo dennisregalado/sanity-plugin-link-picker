@@ -25,12 +25,14 @@ import {
   useClient,
   usePerspective,
   useSchema,
+  useTranslation,
   useValuePreview,
   type QueryParams,
   type SchemaType,
 } from 'sanity'
 
 import {getSystemLinkType, normalizeLinkHref, type SystemLinkType} from './href'
+import {linkPickerLocaleNamespace} from './i18n'
 import {
   getFlattenedLinkRoutes,
   getReferenceTypesFromRoutes,
@@ -381,6 +383,14 @@ type DocumentSearchOptions = {
 
 type Subscription = {unsubscribe: () => void}
 
+function formatResultCount(
+  t: ReturnType<typeof useTranslation>['t'],
+  count: number,
+  hasMore: boolean,
+): string {
+  return hasMore ? t('search.result-count-more', {count}) : t('search.result-count', {count})
+}
+
 /** Pages fetch one extra row to know whether another page exists. */
 function toPage(rows: SearchDocument[]) {
   return {hits: rows.slice(0, SEARCH_PAGE_SIZE), hasNextPage: rows.length > SEARCH_PAGE_SIZE}
@@ -548,9 +558,10 @@ function SearchResults({
     ],
     [documentResults, staticResults, typedLinkResult],
   )
+  const {t} = useTranslation(linkPickerLocaleNamespace)
   const resultLabel = loading
-    ? 'Searching...'
-    : `${results.length}${hasNextPage ? '+' : ''} ${results.length === 1 ? 'result' : 'results'}`
+    ? t('search.searching')
+    : formatResultCount(t, results.length, hasNextPage)
   const rows = useMemo<SearchRow[]>(() => {
     const headerRow: SearchRow = {
       type: 'header',
@@ -759,7 +770,8 @@ function Folder({item}: {item: MenuItem}) {
         : []),
     ]
   }, [item.documentType, items, loading, loadingMore])
-  const resultLabel = `${items.length}${hasNextPage ? '+' : ''} ${items.length === 1 ? 'result' : 'results'}`
+  const {t} = useTranslation(linkPickerLocaleNamespace)
+  const resultLabel = formatResultCount(t, items.length, hasNextPage)
 
   return (
     <Flex gap={1} justify="flex-start" direction="column">
@@ -782,7 +794,7 @@ function Folder({item}: {item: MenuItem}) {
                   <Flex align="center" gap={3}>
                     <ChevronLeftIcon />
                     <Text size={1} weight="medium">
-                      Back
+                      {t('folder.back')}
                     </Text>
                   </Flex>
                   {!loading ? (
@@ -1039,6 +1051,7 @@ function SkeletonItem() {
 
 function EmptyFolderState() {
   const {onClose} = useNavigation()
+  const {t} = useTranslation(linkPickerLocaleNamespace)
 
   return (
     <Button mode="bleed" width="fill" padding={1} onClick={onClose}>
@@ -1048,7 +1061,7 @@ function EmptyFolderState() {
           layout="compact"
           title={
             <Text muted size={1}>
-              No results
+              {t('search.no-results')}
             </Text>
           }
         />

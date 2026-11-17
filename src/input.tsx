@@ -30,10 +30,12 @@ import {
   unset,
   useDocumentPreviewStore,
   usePerspective,
+  useTranslation,
 } from 'sanity'
 import {type RouterPanes, usePaneRouter} from 'sanity/structure'
 
 import {normalizeLinkHref} from './href'
+import {linkPickerLocaleNamespace} from './i18n'
 import {VisualEditorNavigator, getSystemLinkIcon, normalizeLinkIcon} from './navigator'
 import {buildSelectionPatches, type LinkSelection} from './patches'
 import {
@@ -327,6 +329,7 @@ function useReferencedDocumentType(
 
 function ReferencePreviewInput(props: InputProps) {
   const linkContext = useLinkContext()
+  const {t} = useTranslation(linkPickerLocaleNamespace)
   const perspective = usePerspective()
   const {ReferenceChildLink, groupIndex, groupLength, routerPanesState} = usePaneRouter()
   // Outside the Structure and Presentation tools there is no pane router to open references in
@@ -418,13 +421,13 @@ function ReferencePreviewInput(props: InputProps) {
           animate
           content={
             <Text size={1} weight="medium">
-              Replace reference
+              {t('reference.replace')}
             </Text>
           }
           placement="top"
         >
           <Button
-            aria-label="Replace reference"
+            aria-label={t('reference.replace')}
             style={{clipPath: 'inset(3px round 2px)'}}
             disabled={props.readOnly}
             icon={EditIcon}

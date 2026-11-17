@@ -1,34 +1,31 @@
-import React from 'react'
-import {
-  defineField,
-  definePlugin,
-  defineType,
-  type FieldProps,
-  type ObjectInputProps,
-  type SchemaTypeDefinition,
-} from 'sanity'
+import {definePlugin, type PluginOptions} from 'sanity'
 
-import {normalizeLinkHref} from './href'
-import {LinkInput} from './input'
-import {getReferenceTypesFromRoutes} from './routes'
+import {linkPickerUsEnglishLocaleBundle} from './i18n'
 import type {LinkRouteDefinition, LinksPluginProps} from './routes'
-import type {LinkFieldPluginOptions, LinkInputProps, LinkSchemaType, LinkValue} from './types'
+import {createLinkType} from './schema'
+import type {LinkFieldPluginOptions} from './types'
 
-function resolveRoutes(
-  routes: LinkRouteDefinition[] | LinksPluginProps | undefined,
-): LinkRouteDefinition[] {
-  if (!routes) {
-    return []
-  }
-
-  return Array.isArray(routes) ? routes : routes.routes
+type LinkPickerConfig = {
+  routes: LinkRouteDefinition[] | LinksPluginProps
+  options: LinkFieldPluginOptions
 }
+
+const linkPickerPlugin = definePlugin<LinkPickerConfig>(({routes, options}) => ({
+  name: 'sanity-plugin-link-picker',
+  schema: {
+    types: [createLinkType(routes, options)],
+  },
+  i18n: {
+    bundles: [linkPickerUsEnglishLocaleBundle],
+  },
+}))
 
 /**
  * A plugin that adds a custom Link field for creating internal and external links,
  * as well as `mailto` and `tel`-links, all using the same intuitive UI.
  *
- * @param routes - Link picker routes (static paths and document folders)
+ * @param routes - Link picker routes (static paths and document folders), or a menu from
+ *   {@link defineLinkMenu}
  * @param options - Extra schema fields, icon, and preview. See {@link LinkFieldPluginOptions}
  *
  * @example Minimal example
@@ -78,84 +75,10 @@ function resolveRoutes(
  * @public
  */
 export function linkPicker(
-  routes: LinkRouteDefinition[] = [],
+  routes: LinkRouteDefinition[] | LinksPluginProps = [],
   options: LinkFieldPluginOptions = {},
-) {
-  const {icon, preview, fields = []} = options
-  const globalRoutes = resolveRoutes(routes)
-  const globalReferenceTypes = getReferenceTypesFromRoutes(globalRoutes)
-  const referenceField = globalReferenceTypes.length
-    ? defineField({
-        name: 'reference',
-        title: 'Reference',
-        type: 'reference',
-        weak: true,
-        options: {
-          disableNew: true,
-        },
-        to: globalReferenceTypes.map((type) => ({type})),
-      })
-    : null
-
-  const linkType = defineType({
-    name: 'link',
-    title: 'Link',
-    type: 'object',
-    icon,
-    preview: preview || {
-      select: {
-        label: 'label',
-      },
-      prepare: ({label}: {label: string}) => ({
-        title: label,
-      }),
-    },
-    fields: [
-      defineField({
-        name: 'label',
-        title: 'Label',
-        type: 'string',
-        placeholder: 'e.g. Shop now',
-      }),
-      defineField({
-        name: 'url',
-        title: 'URL',
-        type: 'string',
-        placeholder: 'Search or paste a link',
-        validation: (rule) =>
-          rule.custom((value) => {
-            if (!value) {
-              return true
-            }
-
-            if (value.trim().startsWith('?') || normalizeLinkHref(value)) {
-              return true
-            }
-
-            return 'Must be a path, query string, URL, email address, or phone number'
-          }),
-      }),
-      ...(referenceField ? [referenceField] : []),
-      ...fields,
-    ],
-    components: {
-      field: (props: FieldProps) => props.renderDefault(props),
-      input: (props: ObjectInputProps) =>
-        React.createElement(LinkInput, {
-          ...(props as ObjectInputProps<LinkValue, LinkSchemaType>),
-          pluginOptions: {
-            routes,
-          },
-        } as LinkInputProps),
-    },
-  })
-
-  return definePlugin({
-    name: 'link-picker',
-    schema: {
-      types: [linkType as SchemaTypeDefinition],
-    },
-  })()
+): PluginOptions {
+  return linkPickerPlugin({routes, options})
 }
 
 export {defineLinkMenu, documents, group, route} from './routes'
@@ -167,7 +90,13 @@ export type {
   LinksPluginProps,
   StaticLinkRoute,
 } from './routes'
+export {
+  linkPickerLocaleNamespace,
+  linkPickerUsEnglishLocaleBundle,
+  type LinkPickerLocaleResourceKeys,
+} from './i18n'
 export type {
+  LinkDefinition,
   LinkFieldOptions,
   LinkFieldPluginOptions,
   LinkInputProps,

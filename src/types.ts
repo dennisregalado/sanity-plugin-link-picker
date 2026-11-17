@@ -1,4 +1,11 @@
-import type {BaseSchemaDefinition, ObjectInputProps, ObjectSchemaType, PreviewConfig} from 'sanity'
+import type {
+  BaseSchemaDefinition,
+  FieldDefinition,
+  ObjectDefinition,
+  ObjectInputProps,
+  ObjectSchemaType,
+  PreviewConfig,
+} from 'sanity'
 
 import type {LinkRouteDefinition, LinksPluginProps} from './routes'
 
@@ -32,11 +39,13 @@ export type LinkValue = {
  * @public
  */
 export interface LinkFieldPluginOptions {
-  /** Additional schema fields appended to the built-in link fields. */
-  fields?: any[]
+  /** Additional schema fields appended to the built-in `label`, `url` and `reference` fields. */
+  fields?: FieldDefinition[]
 
+  /** Icon for the `link` type, shown in array item previews. */
   icon?: BaseSchemaDefinition['icon']
 
+  /** Preview configuration for the `link` type. Defaults to showing the label. */
   preview?: PreviewConfig
 }
 
@@ -70,5 +79,23 @@ export type LinkSchemaType = Omit<ObjectSchemaType, 'options'> & {
 export type LinkInputProps = ObjectInputProps<LinkValue, LinkSchemaType> & {
   pluginOptions?: {
     routes?: LinkRouteDefinition[] | LinksPluginProps
+  }
+}
+
+/**
+ * Schema definition of a field of type `link`, used by `defineField` and `defineType` to type
+ * the link's `options`.
+ *
+ * @public
+ */
+export interface LinkDefinition extends Omit<ObjectDefinition, 'type' | 'fields' | 'options'> {
+  type: 'link'
+  options?: LinkFieldOptions
+}
+
+declare module 'sanity' {
+  // Lets `defineField({type: 'link', options: {routes}})` type-check and autocomplete
+  export interface IntrinsicDefinitions {
+    link: LinkDefinition
   }
 }

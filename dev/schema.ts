@@ -1,4 +1,5 @@
 import {defineArrayMember, defineField, defineType} from 'sanity'
+import {documents, route} from 'sanity-plugin-link-picker'
 
 /** Minimal stand-ins for the dataset's linkable types, so previews and search work. */
 const linkable = ['page', 'product', 'collection'].map((name) =>
@@ -53,6 +54,13 @@ const linkDemo = defineType({
       of: [defineArrayMember({type: 'link'})],
     }),
     defineField({name: 'readOnlyLink', title: 'Read-only link', type: 'link', readOnly: true}),
+    defineField({
+      name: 'fieldRoutesLink',
+      title: 'Link with field-level routes',
+      type: 'link',
+      // Typed through the plugin's IntrinsicDefinitions declaration
+      options: {routes: [route('Contact', '/contact'), documents('Pages', 'page')]},
+    }),
   ],
 })
 
