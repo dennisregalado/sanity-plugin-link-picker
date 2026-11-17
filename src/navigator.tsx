@@ -28,7 +28,6 @@ import {
   useTranslation,
   useValuePreview,
   type QueryParams,
-  type SchemaType,
 } from 'sanity'
 
 import {getSystemLinkType, normalizeLinkHref, type SystemLinkType} from './href'
@@ -302,19 +301,20 @@ function NavigationProvider({
 }) {
   const [navigationStack, setNavigationStack] = useState<MenuItem[]>([])
 
-  const pushFolder = (folder: MenuItem) => {
+  const pushFolder = useCallback((folder: MenuItem) => {
     setNavigationStack((prev) => [...prev, folder])
-  }
+  }, [])
 
-  const popFolder = () => {
+  const popFolder = useCallback(() => {
     setNavigationStack((prev) => prev.slice(0, -1))
-  }
+  }, [])
 
-  return (
-    <NavigationContext.Provider value={{navigationStack, pushFolder, popFolder, onSelect, onClose}}>
-      {children}
-    </NavigationContext.Provider>
+  const value = useMemo(
+    () => ({navigationStack, pushFolder, popFolder, onSelect, onClose}),
+    [navigationStack, onClose, onSelect, popFolder, pushFolder],
   )
+
+  return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
 }
 
 export function VisualEditorNavigator({onClose, onSelect, routes, searchQuery}: NavigatorProps) {
@@ -606,7 +606,7 @@ function SearchResults({
         items={rows}
         maxHeight={NAVIGATOR_MAX_HEIGHT}
         onEndReached={hasNextPage ? loadMore : undefined}
-        pinnedIndices={[0]}
+        pinnedIndices={PINNED_FIRST_ROW}
         renderItem={(row) => {
           if (row.type === 'header') {
             return (
@@ -785,7 +785,7 @@ function Folder({item}: {item: MenuItem}) {
         items={rows}
         maxHeight={NAVIGATOR_MAX_HEIGHT}
         onEndReached={hasNextPage ? loadMore : undefined}
-        pinnedIndices={[0]}
+        pinnedIndices={PINNED_FIRST_ROW}
         renderItem={(row) => {
           if (row.type === 'back') {
             return (
@@ -839,14 +839,21 @@ type ScrollableListProps<T> = {
   renderItem: (item: T, index: number) => React.ReactNode
 }
 
+const estimateRowSize = () => VIRTUAL_ROW_ESTIMATE_SIZE
+
+const NO_PINNED_ROWS: number[] = []
+
+/** The header/back row stays pinned above the scrolling list */
+const PINNED_FIRST_ROW = [0]
+
 function ScrollableList<T>({
-  estimateSize = () => VIRTUAL_ROW_ESTIMATE_SIZE,
+  estimateSize = estimateRowSize,
   getKey,
   items,
   maxHeight,
   onEndReached,
   overscan = VIRTUAL_LIST_OVERSCAN,
-  pinnedIndices = [],
+  pinnedIndices = NO_PINNED_ROWS,
   renderItem,
 }: ScrollableListProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -861,6 +868,8 @@ function ScrollableList<T>({
     onEndReachedRef.current = onEndReached
   }, [onEndReached])
 
+  // TanStack Virtual returns non-memoizable functions by design; React Compiler skips this component
+  // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: scrollableIndices.length,
     estimateSize: (index) => {
@@ -995,7 +1004,7 @@ function DocumentItem({
   const fallbackMedia = item._id === 'default' ? DefaultIcon : icon
   const preview = useValuePreview({
     enabled: Boolean(schemaType && item._id && item._type),
-    schemaType: schemaType as SchemaType | undefined,
+    schemaType,
     value: item._id && item._type ? {_id: item._id, _type: item._type} : undefined,
     perspectiveStack,
   })

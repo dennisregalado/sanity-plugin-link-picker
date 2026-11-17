@@ -1,10 +1,11 @@
-import type {SchemaType} from 'sanity'
 import {describe, expect, it} from 'vitest'
 
-import {buildDocumentSearchQuery, prefixLast} from '../search'
+import {buildDocumentSearchQuery, prefixLast, type SearchSchemaType} from '../search'
 
-const schemaType = (name: string, select?: Record<string, string>) =>
-  ({name, preview: select ? {select} : undefined}) as unknown as SchemaType
+const schemaType = (name: string, select?: Record<string, string>): SearchSchemaType => ({
+  name,
+  preview: select ? {select} : undefined,
+})
 
 describe('prefixLast', () => {
   it.each([

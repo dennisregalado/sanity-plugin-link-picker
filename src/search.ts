@@ -10,6 +10,9 @@ const SAFE_NAME = /^[A-Za-z_][\w.-]*$/
 const SAFE_PATH = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/
 const TOKEN_REGEX = /(?:[^\s"]+|"[^"]*")+/g
 
+/** The parts of a schema type the search reads. */
+export type SearchSchemaType = Pick<SchemaType, 'name' | 'preview'>
+
 export interface DocumentSearchRequest {
   query: string
   params: QueryParams
@@ -36,7 +39,7 @@ export function prefixLast(query: string): string {
  * Score boosts for a type's preview `title`/`subtitle`/`description` fields, mirroring how
  * Studio's search ranks documents whose preview text matches.
  */
-function getPreviewBoosts(schemaType: SchemaType | undefined): string[] {
+function getPreviewBoosts(schemaType: SearchSchemaType | undefined): string[] {
   const select = schemaType?.preview?.select
   if (!schemaType || !select || !SAFE_NAME.test(schemaType.name)) return []
 
@@ -60,7 +63,7 @@ function getPreviewBoosts(schemaType: SchemaType | undefined): string[] {
 export function buildDocumentSearchQuery(options: {
   mode: 'search' | 'browse'
   query: string
-  schemaTypes: (SchemaType | undefined)[]
+  schemaTypes: (SearchSchemaType | undefined)[]
   typeNames: string[]
   filter?: string
   filterParams?: QueryParams

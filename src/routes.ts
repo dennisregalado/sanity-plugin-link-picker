@@ -1,4 +1,4 @@
-import type {ElementType, ReactNode} from 'react'
+import type {JSXElementConstructor, ReactNode} from 'react'
 import type {QueryParams} from 'sanity'
 
 /**
@@ -7,7 +7,8 @@ import type {QueryParams} from 'sanity'
  *
  * @public
  */
-export type LinkIconInput = ElementType | ReactNode | string
+// Same as `ElementType | ReactNode`, without listing every HTML tag name separately
+export type LinkIconInput = JSXElementConstructor<any> | ReactNode
 
 /**
  * A static path shown in the picker. Selecting it stores `path` in the link's `url`. Create with {@link route}.
@@ -106,23 +107,26 @@ export function getReferenceTypesFromRoutes(routes: LinkRouteDefinition[]): stri
   return Array.from(documentTypes)
 }
 
+/** Document types the compiled link schema's `reference` field accepts. */
 export function getReferenceTypesFromSchemaType(
-  schemaType: unknown,
+  schemaType: {fields?: readonly {name: string; type?: unknown}[]} | undefined,
   fieldName = 'reference',
 ): string[] {
-  const fields = (schemaType as any)?.fields
-  const referenceField = Array.isArray(fields)
-    ? fields.find((field) => field?.name === fieldName)
-    : undefined
-  const to = referenceField?.type?.to || referenceField?.to
-
-  if (!Array.isArray(to)) {
+  const fieldType = schemaType?.fields?.find((field) => field.name === fieldName)?.type
+  if (!fieldType || typeof fieldType !== 'object' || !('to' in fieldType)) {
     return []
   }
 
-  return to
-    .map((target) => target?.name || target?.type)
-    .filter((type): type is string => typeof type === 'string')
+  const targets: unknown = fieldType.to
+  if (!Array.isArray(targets)) {
+    return []
+  }
+
+  return targets.flatMap((target: unknown) =>
+    target && typeof target === 'object' && 'name' in target && typeof target.name === 'string'
+      ? [target.name]
+      : [],
+  )
 }
 
 /**
