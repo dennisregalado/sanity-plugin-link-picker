@@ -19,6 +19,7 @@ describe('normalizeLinkHref', () => {
     ['+1 (555) 555-0123', 'tel:+15555550123'],
     ['555-555-0123', 'tel:5555550123'],
     ['tel:+44 20 7946 0958', 'tel:+442079460958'],
+    ['//example.com/path', 'https://example.com/path'],
   ])('normalises %j to %j', (input, expected) => {
     expect(normalizeLinkHref(input)).toBe(expected)
   })
@@ -35,6 +36,9 @@ describe('normalizeLinkHref', () => {
     ['12345'],
     ['https://'],
     ['ftp://example.com'],
+    ['/\\evil.com'],
+    ['\\\\evil.com'],
+    ['//'],
   ])('rejects %j', (input) => {
     expect(normalizeLinkHref(input)).toBeNull()
   })
@@ -49,6 +53,7 @@ describe('isInternalLinkHref', () => {
 
   it('treats absolute URLs as external', () => {
     expect(isInternalLinkHref('https://example.com')).toBe(false)
+    expect(isInternalLinkHref('//example.com')).toBe(false)
     expect(isInternalLinkHref(undefined)).toBe(false)
   })
 })

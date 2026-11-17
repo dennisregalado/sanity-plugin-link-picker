@@ -2,11 +2,24 @@
 
 export type SystemLinkType = 'internal' | 'external' | 'email' | 'phone'
 
+/**
+ * Normalises a typed link into a stored `url` value, or returns `null` if it isn't a valid link.
+ *
+ * Accepts paths, hashes, query strings, `http(s)` URLs, bare domains, email addresses and phone
+ * numbers. Protocol-relative URLs (`//example.com`) are external, so they are stored as `https:`.
+ * Backslashes are rejected because browsers treat them as `/` (`/\\example.com` opens a
+ * different host).
+ */
 export function normalizeLinkHref(value: string | null | undefined): string | null {
   const input = value?.trim()
 
-  if (!input) {
+  if (!input || input.includes('\\')) {
     return null
+  }
+
+  if (input.startsWith('//')) {
+    const url = `https:${input}`
+    return isAbsoluteUrl(url) ? url : null
   }
 
   if (input.startsWith('/') || input.startsWith('#') || input.startsWith('?')) {
@@ -43,8 +56,9 @@ export function normalizeLinkHref(value: string | null | undefined): string | nu
   return null
 }
 
-export function isInternalLinkHref(value: string | null | undefined) {
-  return Boolean(value?.startsWith('/') || value?.startsWith('#') || value?.startsWith('?'))
+export function isInternalLinkHref(value: string | null | undefined): boolean {
+  if (!value || value.startsWith('//')) return false
+  return value.startsWith('/') || value.startsWith('#') || value.startsWith('?')
 }
 
 export function getSystemLinkType(href: string): SystemLinkType {
