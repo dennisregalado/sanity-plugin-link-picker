@@ -1106,22 +1106,19 @@ function SkeletonItem() {
 }
 
 function EmptyFolderState() {
-  const {onClose} = useNavigation()
   const {t} = useTranslation(linkPickerLocaleNamespace)
 
   return (
-    <Button mode="bleed" width="fill" padding={1} onClick={onClose}>
-      <Box style={{width: '100%'}}>
-        <SanityDefaultPreview
-          icon={false}
-          layout="compact"
-          title={
-            <Text muted size={1}>
-              {t('search.no-results')}
-            </Text>
-          }
-        />
-      </Box>
-    </Button>
+    <Box padding={1} style={{width: '100%'}}>
+      <SanityDefaultPreview
+        icon={false}
+        layout="compact"
+        title={
+          <Text muted size={1}>
+            {t('search.no-results')}
+          </Text>
+        }
+      />
+    </Box>
   )
 }
