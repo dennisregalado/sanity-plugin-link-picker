@@ -51,8 +51,7 @@
   "dependencies": {
     "@sanity/icons": "^5.2.1",
     "@sanity/ui": "^4.0.3",
-    "@tanstack/react-virtual": "^3.14.5",
-    "lucide-react": "^1.22.0"
+    "@tanstack/react-virtual": "^3.14.5"
   },
   "devDependencies": {
     "@sanity/browserslist-config": "^1.0.5",

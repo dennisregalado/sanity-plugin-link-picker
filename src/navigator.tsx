@@ -7,9 +7,12 @@
 
 import {ChevronLeftIcon} from '@sanity/icons/ChevronLeft'
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
+import {EarthGlobeIcon} from '@sanity/icons/EarthGlobe'
+import {EnvelopeIcon} from '@sanity/icons/Envelope'
+import {LinkIcon} from '@sanity/icons/Link'
+import {MobileDeviceIcon} from '@sanity/icons/MobileDevice'
 import {Box, Button, Card, Flex, Stack, Text} from '@sanity/ui'
 import {useVirtualizer} from '@tanstack/react-virtual'
-import {AtSignIcon, GlobeIcon, LinkIcon, PhoneIcon, type LucideIcon} from 'lucide-react'
 import React, {
   useCallback,
   useEffect,
@@ -47,7 +50,8 @@ const DefaultIcon = () => <Text>✨</Text>
 
 const NAVIGATOR_MAX_HEIGHT = 390
 
-const ICON_SIZE = 16
+// @sanity/icons are drawn on a 25px grid with padding; 21px matches the old 16px glyphs
+const ICON_SIZE = 21
 
 const VIRTUAL_LIST_OVERSCAN = 5
 
@@ -59,13 +63,13 @@ const API_VERSION = '2025-02-19'
 
 const NO_ROUTES: LinkRouteDefinition[] = []
 
-type LinkIcon = () => React.ReactNode
+type RenderLinkIcon = () => React.ReactNode
 
-const defaultLinkTypeIcons: Record<SystemLinkType, LucideIcon> = {
+const defaultLinkTypeIcons: Record<SystemLinkType, typeof LinkIcon> = {
   internal: LinkIcon,
-  external: GlobeIcon,
-  email: AtSignIcon,
-  phone: PhoneIcon,
+  external: EarthGlobeIcon,
+  email: EnvelopeIcon,
+  phone: MobileDeviceIcon,
 }
 
 type FolderRow =
@@ -164,7 +168,7 @@ function NormalizedLinkIcon({
 export function normalizeLinkIcon(
   icon: LinkIconInput | undefined,
   options?: {shift?: boolean},
-): LinkIcon | undefined {
+): RenderLinkIcon | undefined {
   if (!icon) {
     return undefined
   }
@@ -190,12 +194,12 @@ function isReactComponentObject(icon: unknown): icon is React.ElementType {
   )
 }
 
-export function getSystemLinkIcon(href: string, options?: {shift?: boolean}): LinkIcon {
+export function getSystemLinkIcon(href: string, options?: {shift?: boolean}): RenderLinkIcon {
   const Icon = defaultLinkTypeIcons[getSystemLinkType(href)]
 
   return () => (
     <NormalizedLinkIcon shift={options?.shift}>
-      <Icon size={ICON_SIZE} />
+      <Icon style={{fontSize: ICON_SIZE}} />
     </NormalizedLinkIcon>
   )
 }
