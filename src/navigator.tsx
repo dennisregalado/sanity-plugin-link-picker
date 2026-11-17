@@ -596,6 +596,9 @@ function SearchResults({
 
   return (
     <Flex gap={1} justify="flex-start" direction="column">
+      <ResultAnnouncement>
+        {loading ? '' : results.length === 0 ? t('search.no-results') : resultLabel}
+      </ResultAnnouncement>
       <ScrollableList
         getKey={(row, index) => {
           if (row.type === 'header') return 'header'
@@ -775,6 +778,9 @@ function Folder({item}: {item: MenuItem}) {
 
   return (
     <Flex gap={1} justify="flex-start" direction="column">
+      <ResultAnnouncement>
+        {loading ? '' : items.length === 0 ? t('search.no-results') : resultLabel}
+      </ResultAnnouncement>
       <ScrollableList
         getKey={(row, index) => {
           if (row.type === 'back') return 'back'
@@ -1045,6 +1051,29 @@ function DocumentItem({
         </Box>
       )}
     </Button>
+  )
+}
+
+// Standard visually-hidden styles. (@sanity/ui's SrOnly sets aria-hidden, which also hides the
+// text from screen readers, so it can't be used for announcements.)
+const VISUALLY_HIDDEN: React.CSSProperties = {
+  border: 0,
+  clipPath: 'inset(50%)',
+  height: 1,
+  margin: -1,
+  overflow: 'hidden',
+  padding: 0,
+  position: 'absolute',
+  whiteSpace: 'nowrap',
+  width: 1,
+}
+
+/** Announces result counts to screen readers; visually hidden. */
+function ResultAnnouncement({children}: {children: React.ReactNode}) {
+  return (
+    <output aria-live="polite" style={VISUALLY_HIDDEN}>
+      {children}
+    </output>
   )
 }
 

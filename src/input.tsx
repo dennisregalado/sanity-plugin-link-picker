@@ -13,6 +13,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -99,6 +100,7 @@ type LinkContextValue = {
   closePopover: () => void
   canOpenPopover: boolean
   popoverOpen: boolean
+  popoverId: string
   searchQuery: string
   setSearchQuery: (query: string) => void
   flattenedRoutes: StaticLinkRoute[]
@@ -121,6 +123,7 @@ export function LinkInput(props: LinkInputProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [anchorElement, setAnchorElement] = useState<HTMLDivElement | null>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const popoverId = useId()
 
   const routeConfig = schemaType.options?.routes || props.pluginOptions?.routes
   const configuredRoutes = useMemo(() => resolveRoutes(routeConfig), [routeConfig])
@@ -216,6 +219,7 @@ export function LinkInput(props: LinkInputProps) {
       closePopover,
       canOpenPopover,
       popoverOpen,
+      popoverId,
       searchQuery,
       setSearchQuery,
       flattenedRoutes,
@@ -226,6 +230,7 @@ export function LinkInput(props: LinkInputProps) {
       closePopover,
       flattenedRoutes,
       openPopover,
+      popoverId,
       popoverOpen,
       replaceReference,
       searchQuery,
@@ -239,7 +244,7 @@ export function LinkInput(props: LinkInputProps) {
         portal
         matchReferenceWidth
         content={
-          <Box ref={popoverRef} onMouseDown={preventBlur}>
+          <Box id={popoverId} ref={popoverRef} onMouseDown={preventBlur}>
             <VisualEditorNavigator
               routes={routes}
               searchQuery={searchQuery}
@@ -516,36 +521,39 @@ function URLInput(props: StringInputProps) {
     return undefined
   }
 
+  const pickerOpen = linkContext.canOpenPopover && linkContext.popoverOpen
   const urlElementProps = {
     ...elementProps,
-    icon: getIcon(),
-    value: draftValue,
-    clearButton:
+    'aria-expanded': linkContext.canOpenPopover ? pickerOpen : undefined,
+    'aria-controls': pickerOpen ? linkContext.popoverId : undefined,
+    'icon': getIcon(),
+    'value': draftValue,
+    'clearButton':
       draftValue && !readOnly
         ? {
             icon: isValidLink(draftValue) ? SmallEditIcon : CloseIcon,
           }
         : false,
-    onBlur: (event: FocusEvent<HTMLInputElement>) => {
+    'onBlur': (event: FocusEvent<HTMLInputElement>) => {
       elementProps.onBlur(event)
       setFocused(false)
       commitDraftValue()
       linkContext.closePopover()
     },
-    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+    'onChange': (event: ChangeEvent<HTMLInputElement>) => {
       const nextValue = event.currentTarget.value
       setDraftValue(nextValue)
       if (linkContext.canOpenPopover) {
         linkContext.setSearchQuery(nextValue)
       }
     },
-    onClear: () => {
+    'onClear': () => {
       if (readOnly) return
       linkContext.closePopover()
       setDraftValue('')
       onChange(unset())
     },
-    onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
+    'onKeyDown': (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
         event.preventDefault()
         commitDraftValue()
@@ -559,7 +567,7 @@ function URLInput(props: StringInputProps) {
         linkContext.closePopover()
       }
     },
-    onFocus: (event: FocusEvent<HTMLInputElement>) => {
+    'onFocus': (event: FocusEvent<HTMLInputElement>) => {
       // Lets Studio track focus and presence for this field
       elementProps.onFocus(event)
       setFocused(true)
