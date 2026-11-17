@@ -7,7 +7,7 @@
 
 import {ChevronLeftIcon} from '@sanity/icons/ChevronLeft'
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
-import {Box, Button, Flex, Stack, Text} from '@sanity/ui'
+import {Box, Button, Card, Flex, Stack, Text} from '@sanity/ui'
 import {useVirtualizer} from '@tanstack/react-virtual'
 import {AtSignIcon, GlobeIcon, LinkIcon, PhoneIcon, type LucideIcon} from 'lucide-react'
 import React, {
@@ -56,8 +56,6 @@ const SEARCH_DEBOUNCE_MS = 300
 const API_VERSION = '2025-02-19'
 
 const NO_ROUTES: LinkRouteDefinition[] = []
-
-const STICKY_ROW_BACKGROUND = 'var(--card-bg-color, var(--card-backdrop-color, canvas))'
 
 type LinkIcon = () => React.ReactNode
 
@@ -910,18 +908,13 @@ function ScrollableList<T>({
       }}
     >
       {pinnedIndices.map((index) => (
-        <Box
+        <Card
           key={getKey(items[index], index)}
           paddingX={1}
-          style={{
-            background: STICKY_ROW_BACKGROUND,
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
-          }}
+          style={{position: 'sticky', top: 0, zIndex: 1}}
         >
           {renderItem(items[index], index)}
-        </Box>
+        </Card>
       ))}
 
       {scrollableIndices.length > 0 ? (
