@@ -1,6 +1,31 @@
+import {getPublishedId} from 'sanity'
 import {describe, expect, it} from 'vitest'
 
-import {buildSelectionPatches} from '../patches'
+import {buildSelectionPatches, getPublishedDocumentId} from '../patches'
+
+describe('getPublishedDocumentId', () => {
+  const ids = [
+    'page-1',
+    'drafts.page-1',
+    'versions.rSpring.page-1',
+    'versions.rSpring.page.with.dots',
+    'drafts.page.with.dots',
+    'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    'drafts.a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    'versions.r123.a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  ]
+
+  it.each(ids)('matches Studio for %j', (id) => {
+    // Studio's own helper is only used here, as a reference; the plugin doesn't ship it
+    expect(getPublishedDocumentId(id)).toBe(getPublishedId(id))
+  })
+
+  it('strips draft and release prefixes', () => {
+    expect(getPublishedDocumentId('drafts.page-1')).toBe('page-1')
+    expect(getPublishedDocumentId('versions.rSpring.page-1')).toBe('page-1')
+    expect(getPublishedDocumentId('page-1')).toBe('page-1')
+  })
+})
 
 describe('buildSelectionPatches', () => {
   it('stores a reference with the published id, even for draft and release hits', () => {
