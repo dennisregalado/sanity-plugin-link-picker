@@ -186,11 +186,15 @@ export function documents(
 
 // Type definitions
 
+/**
+ * Removes document folders whose type isn't in `referenceTypes` (the types the link schema's
+ * `reference` field accepts). With no accepted types, every document folder is removed.
+ */
 export function applyReferenceTypes(
   routes: LinkRouteDefinition[],
-  referenceTypes?: string[],
+  referenceTypes: string[],
 ): LinkRouteDefinition[] {
-  if (!referenceTypes?.length) {
+  if (getReferenceTypesFromRoutes(routes).every((type) => referenceTypes.includes(type))) {
     return routes
   }
 
@@ -214,9 +218,14 @@ export function applyReferenceTypes(
     })
 }
 
+/** Whether development-only warnings should be skipped. Safe when `process` is undefined. */
+export function isProduction(): boolean {
+  const env: {process?: {env?: {NODE_ENV?: string}}} = globalThis
+  return env.process?.env?.NODE_ENV === 'production'
+}
+
 function validateLinksConfig(config: LinksPluginProps) {
-  const nodeEnv = (globalThis as {process?: {env?: {NODE_ENV?: string}}}).process?.env?.NODE_ENV
-  if (nodeEnv === 'production') {
+  if (isProduction()) {
     return
   }
 

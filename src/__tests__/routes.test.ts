@@ -47,6 +47,16 @@ describe('route helpers', () => {
     expect(getReferenceTypesFromRoutes(filtered)).toEqual(['page'])
     expect(getFlattenedLinkRoutes(filtered).map((r) => r.path)).toEqual(['/', '/shop'])
   })
+
+  it('removes every document folder when the schema accepts no references', () => {
+    const filtered = applyReferenceTypes(routes, [])
+    expect(getReferenceTypesFromRoutes(filtered)).toEqual([])
+    expect(getFlattenedLinkRoutes(filtered).map((r) => r.path)).toEqual(['/', '/shop'])
+  })
+
+  it('returns the same routes array when nothing needs removing', () => {
+    expect(applyReferenceTypes(routes, ['page', 'product'])).toBe(routes)
+  })
 })
 
 describe('getReferenceTypesFromSchemaType', () => {

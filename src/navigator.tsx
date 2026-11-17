@@ -32,7 +32,6 @@ import {
 
 import {getSystemLinkType, normalizeLinkHref, type SystemLinkType} from './href'
 import {
-  applyReferenceTypes,
   getFlattenedLinkRoutes,
   getReferenceTypesFromRoutes,
   type LinkIconInput,
@@ -54,6 +53,8 @@ const VIRTUAL_ROW_ESTIMATE_SIZE = 52
 const SEARCH_DEBOUNCE_MS = 300
 
 const API_VERSION = '2025-02-19'
+
+const NO_ROUTES: LinkRouteDefinition[] = []
 
 const STICKY_ROW_BACKGROUND = 'var(--card-bg-color, var(--card-backdrop-color, canvas))'
 
@@ -109,7 +110,6 @@ type NavigatorProps = {
   }) => void
   onClose?: () => void
   routes?: LinkRouteDefinition[]
-  referenceTypes?: string[]
   searchQuery?: string
 }
 
@@ -315,17 +315,8 @@ function NavigationProvider({
   )
 }
 
-export function VisualEditorNavigator({
-  onClose,
-  onSelect,
-  routes,
-  referenceTypes,
-  searchQuery,
-}: NavigatorProps) {
-  const filteredRoutes = useMemo(
-    () => applyReferenceTypes(routes || [], referenceTypes),
-    [routes, referenceTypes],
-  )
+export function VisualEditorNavigator({onClose, onSelect, routes, searchQuery}: NavigatorProps) {
+  const filteredRoutes = routes ?? NO_ROUTES
   const menuItems = useMemo(() => normalizeRoutes(filteredRoutes), [filteredRoutes])
   const documentTypes = useMemo(() => getReferenceTypesFromRoutes(filteredRoutes), [filteredRoutes])
   const staticRoutes = useMemo(() => getFlattenedLinkRoutes(filteredRoutes), [filteredRoutes])
