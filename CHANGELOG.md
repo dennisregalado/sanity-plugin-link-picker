@@ -20,6 +20,12 @@ Requires Sanity Studio `^6.10.0` and React `^19.2`. See [MIGRATION.md](./MIGRATI
 - Protocol-relative URLs (`//example.com`) are stored as `https://example.com` and treated as
   external; values containing backslashes are rejected.
 - The plugin is named `sanity-plugin-link-picker` (was `link-picker`).
+- Link type icons in the URL input and picker come from `@sanity/icons` (Link, EarthGlobe,
+  Envelope, MobileDevice); the `lucide-react` dependency is removed.
+- The URL clear button always shows a close icon (it showed a pencil for valid links).
+- "No results" is plain text instead of a clickable row.
+- Fields added with `options.fields` are spaced like other Studio fields.
+- The default `link` preview shows the URL as subtitle, or as title when there's no label.
 
 ### Added
 
@@ -28,6 +34,8 @@ Requires Sanity Studio `^6.10.0` and React `^19.2`. See [MIGRATION.md](./MIGRATI
   `IntrinsicDefinitions`; new `LinkDefinition` type.
 - `en-US` locale bundle for all UI strings (`linkPickerLocaleNamespace`,
   `linkPickerUsEnglishLocaleBundle`, `LinkPickerLocaleResourceKeys`).
+- Keyboard navigation in the picker: <kbd>↓</kbd>/<kbd>↑</kbd> move a highlight, <kbd>Enter</kbd>
+  selects or opens a folder (ARIA combobox/listbox pattern).
 - <kbd>Esc</kbd> and leaving the input close the picker; `aria-expanded`/`aria-controls` on the
   input; result counts announced to screen readers; accessible name on the "Replace reference"
   button.

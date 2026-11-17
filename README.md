@@ -251,12 +251,12 @@ Keep the default fields stable when possible. Most projects can model extra fron
 
 `linkPicker(routes?, options?)`
 
-| Argument / option | Type                                        | Default        | Description                                                                                                                   |
-| ----------------- | ------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `routes`          | `LinkRouteDefinition[] \| LinksPluginProps` | `[]`           | Routes, groups and document folders shown in the picker. Document folder types become the `reference` field's accepted types. |
-| `options.fields`  | `FieldDefinition[]`                         | `[]`           | Extra fields appended after `label`, `url` and `reference`.                                                                   |
-| `options.icon`    | component or element                        | none           | Icon for the `link` type, shown in array item previews.                                                                       |
-| `options.preview` | `PreviewConfig`                             | label as title | Preview configuration for the `link` type.                                                                                    |
+| Argument / option | Type                                        | Default                         | Description                                                                                                                   |
+| ----------------- | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `routes`          | `LinkRouteDefinition[] \| LinksPluginProps` | `[]`                            | Routes, groups and document folders shown in the picker. Document folder types become the `reference` field's accepted types. |
+| `options.fields`  | `FieldDefinition[]`                         | `[]`                            | Extra fields appended after `label`, `url` and `reference`.                                                                   |
+| `options.icon`    | component or element                        | none                            | Icon for the `link` type, shown in array item previews.                                                                       |
+| `options.preview` | `PreviewConfig`                             | label as title, URL as subtitle | Preview configuration for the `link` type.                                                                                    |
 
 Field options (`options` on a `type: 'link'` field):
 
@@ -305,8 +305,10 @@ The `LinkPickerLocaleResourceKeys` type lists every key.
 
 ## Accessibility
 
-- The picker opens when the URL input is focused. <kbd>Esc</kbd> closes it without closing the surrounding pane or dialog, and leaving the input closes it too.
-- The input exposes the picker's open state (`aria-expanded`, `aria-controls`), and result counts are announced to screen readers.
+- The picker opens when the URL input is focused, or with <kbd>↓</kbd>/<kbd>↑</kbd>.
+- <kbd>↓</kbd>/<kbd>↑</kbd> move through routes, folders, **Back** and documents; <kbd>Enter</kbd> selects the highlighted item or opens the highlighted folder. Moving the mouse hands back to normal hover.
+- <kbd>Esc</kbd> closes the picker without closing the surrounding pane or dialog, and leaving the input closes it too.
+- The picker follows the ARIA combobox pattern (`role="combobox"` with `aria-activedescendant`, a listbox of options), and result counts are announced to screen readers.
 - Read-only fields never open the picker.
 
 ## Migrating From Custom Link Types
