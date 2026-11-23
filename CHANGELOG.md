@@ -10,6 +10,12 @@ All notable changes to this project are documented here. The format is based on
 
 - `anchor` fields render without their own fieldset: the input sits flush with sibling fields and
   carries the anchor field's title and description.
+- Sections in the anchor picker look like they do in their page's sections list: each section's
+  own preview title and media (or its type's icon), with `#slug` as the subtitle, in the two-line
+  layout. Section types declared inline in the sections array are resolved through the page's
+  schema.
+- A selected section shows its section's icon and title in the compact row (`Section #slug`, or
+  `Page › Section #slug` outside a link to that page).
 
 ## [2.2.0] - 2026-11-23
 

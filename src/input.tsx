@@ -557,7 +557,10 @@ export function ReferencePreviewInput(props: InputProps) {
 
   // A section opens the page it's on, at the section, rather than its read-only anchor document
   const isSection = linkTarget?.documentType === SECTION_ANCHOR_TYPE
-  const anchorSummary = useAnchorSummary(isSection ? documentId : undefined)
+  const anchorSummary = useAnchorSummary(
+    isSection ? documentId : undefined,
+    linkContext.sectionsField,
+  )
   const sectionTarget =
     isSection && anchorSummary?.parentId && anchorSummary.parentType
       ? {

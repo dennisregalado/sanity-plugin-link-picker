@@ -22,6 +22,21 @@ describe('prefixLast', () => {
 })
 
 describe('buildDocumentSearchQuery', () => {
+  it('returns a custom projection when given one', () => {
+    const projection =
+      '{_id, _type, title, "sectionType": parent->sections[_key == ^.sectionKey][0]._type}'
+    for (const mode of ['browse', 'search'] as const) {
+      const {query} = buildDocumentSearchQuery({
+        mode,
+        query: 'team',
+        typeNames: ['sectionAnchor'],
+        schemaTypes: [schemaType('sectionAnchor')],
+        projection,
+      })
+      expect(query.endsWith(projection)).toBe(true)
+    }
+  })
+
   it('browses by the `order` field when asked', () => {
     const {query} = buildDocumentSearchQuery({
       mode: 'browse',

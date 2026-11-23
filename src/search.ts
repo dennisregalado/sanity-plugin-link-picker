@@ -13,6 +13,8 @@ const TOKEN_REGEX = /(?:[^\s"]+|"[^"]*")+/g
 /** The parts of a schema type the search reads. */
 export type SearchSchemaType = Pick<SchemaType, 'name' | 'preview'>
 
+const DEFAULT_PROJECTION = '{_id, _type, _originalId}'
+
 /** How a browsed folder is sorted. */
 export type DocumentBrowseSort = 'updated' | 'order'
 
@@ -77,13 +79,23 @@ export function buildDocumentSearchQuery(options: {
   filterParams?: QueryParams
   /** Browse order: newest first (default), or by the documents' `order` field. */
   sort?: DocumentBrowseSort
+  /** Fields returned per document. Defaults to `{_id, _type, _originalId}`. */
+  projection?: string
 }): DocumentSearchRequest {
-  const {mode, query, schemaTypes, typeNames, filter, filterParams, sort = 'updated'} = options
+  const {
+    mode,
+    query,
+    schemaTypes,
+    typeNames,
+    filter,
+    filterParams,
+    sort = 'updated',
+    projection = DEFAULT_PROJECTION,
+  } = options
   const constraints = ['_type in $__types']
   if (filter) constraints.push(`(${filter})`)
 
   const params: QueryParams = {...filterParams, __types: typeNames}
-  const projection = '{_id, _type, _originalId}'
   const slice = '[$__start...$__end]'
 
   if (mode === 'browse') {

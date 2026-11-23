@@ -75,9 +75,10 @@ export function AnchorInput(props: AnchorInputProps) {
         {...navigatorProps}
         contextDocument={contextDocument}
         documentTypes={documentTypes}
+        sectionsField={props.pluginOptions.field}
       />
     ),
-    [contextDocument, documentTypes],
+    [contextDocument, documentTypes, props.pluginOptions.field],
   )
 
   return (
