@@ -1,5 +1,5 @@
 import {HashIcon} from '@sanity/icons/Hash'
-import {defineField, defineType, type ObjectInputProps} from 'sanity'
+import {defineField, defineType, type FieldProps, type ObjectInputProps} from 'sanity'
 
 import {AnchorInput} from './anchor-input'
 import {SECTION_ANCHOR_TYPE} from './anchors'
@@ -190,6 +190,8 @@ export function createAnchorType(options: AnchorPluginOptions) {
       }),
     ],
     components: {
+      // No fieldset around a single input: the inner field shows the anchor field's title
+      field: (props: FieldProps) => props.children,
       input: (props: ObjectInputProps) =>
         isAnchorInputProps(props) ? (
           <AnchorInput {...props} pluginOptions={pluginOptions} />

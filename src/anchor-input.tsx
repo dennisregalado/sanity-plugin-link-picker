@@ -28,28 +28,31 @@ function isBrowseValue(value: string) {
   return !trimmed || isAnchorHref(trimmed)
 }
 
-const HIDE_TITLE = {hideTitle: true}
-
 export function AnchorInput(props: AnchorInputProps) {
   const {members, onChange, onPathFocus, path, readOnly, renderDefault, schemaType, value} = props
   const documentTypes = props.pluginOptions.documentTypes
   const contextDocument = useAnchorContextDocument(path)
   const hasReference = Boolean(value?.reference)
 
-  // The anchor field's own title labels the input, so the inner url/reference fields don't repeat it
+  // The anchor field renders without its own wrapper (see createAnchorType), so the inner
+  // url/reference field carries the anchor field's title and description instead
+  const label = useMemo(
+    () => ({title: schemaType.title, description: schemaType.description}),
+    [schemaType.description, schemaType.title],
+  )
   const referenceField = useMemo(
     () =>
       members
         .filter((member) => getMemberFieldName(member) === 'reference')
-        .map((member) => withInputComponent(member, ReferencePreviewInput, HIDE_TITLE)),
-    [members],
+        .map((member) => withInputComponent(member, ReferencePreviewInput, {label})),
+    [label, members],
   )
   const urlField = useMemo(
     () =>
       members
         .filter((member) => getMemberFieldName(member) === 'url')
-        .map((member) => withInputComponent(member, URLInputComponent, HIDE_TITLE)),
-    [members],
+        .map((member) => withInputComponent(member, URLInputComponent, {label})),
+    [label, members],
   )
   const extraMembers = useMemo(
     () =>

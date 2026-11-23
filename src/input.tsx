@@ -84,7 +84,8 @@ export function getMemberFieldName(member: ObjectMember): string | undefined {
 export function withInputComponent(
   member: ObjectMember,
   input: ComponentType<InputProps>,
-  options: {hideTitle?: boolean} = {},
+  /** Replaces the member's label (Studio labels a field with its schema type's title). */
+  options: {label?: {title?: string; description?: SchemaType['description']}} = {},
 ): ObjectMember {
   if (member.kind !== 'field') {
     return member
@@ -96,8 +97,9 @@ export function withInputComponent(
       ...member.field,
       schemaType: {
         ...member.field.schemaType,
-        // Studio labels a field with its schema type's title
-        ...(options.hideTitle ? {title: undefined} : {}),
+        ...(options.label
+          ? {title: options.label.title, description: options.label.description}
+          : {}),
         components: {input},
       },
     },
