@@ -90,6 +90,7 @@ export function AnchorInput(props: AnchorInputProps) {
       normalizeHref={normalizeAnchorHref}
       getIcon={getAnchorIcon}
       isBrowseValue={isBrowseValue}
+      linkedDocumentId={contextDocument?.kind === 'linked' ? contextDocument._id : undefined}
     >
       {(setAnchorElement) => (
         <Stack gap={5}>

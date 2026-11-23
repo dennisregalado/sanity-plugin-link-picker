@@ -1,5 +1,6 @@
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
 import {DocumentIcon} from '@sanity/icons/Document'
+import {HashIcon} from '@sanity/icons/Hash'
 import {Box, Text} from '@sanity/ui'
 import type React from 'react'
 import {useEffect, useState} from 'react'
@@ -53,7 +54,17 @@ const SEPARATOR: React.CSSProperties = {...MUTED, margin: '0 0.25em', verticalAl
 /**
  * A selected section shown as a breadcrumb: `[page icon] Page › Section #slug`.
  */
-export function AnchorBreadcrumb({anchorId}: {anchorId: string}) {
+export function AnchorBreadcrumb({
+  anchorId,
+  linkedDocumentId,
+}: {
+  anchorId: string
+  /**
+   * The document the surrounding link points to. When the section is on it, the page name is
+   * already shown next to the field, so only `Section #slug` is shown.
+   */
+  linkedDocumentId?: string
+}) {
   const {t} = useTranslation(linkPickerLocaleNamespace)
   const schema = useSchema()
   const {perspectiveStack} = usePerspective()
@@ -79,6 +90,25 @@ export function AnchorBreadcrumb({anchorId}: {anchorId: string}) {
     )
   }
 
+  const sectionLabel = (
+    <>
+      {summary.title || t('anchor.untitled')}
+      {summary.slug ? <span style={{...MUTED, marginLeft: '0.5em'}}>#{summary.slug}</span> : null}
+    </>
+  )
+
+  if (linkedDocumentId && summary.parentId === linkedDocumentId) {
+    return (
+      <Box style={{width: '100%'}}>
+        <SanityDefaultPreview
+          icon={HashIcon}
+          layout="compact"
+          title={<span>{sectionLabel}</span>}
+        />
+      </Box>
+    )
+  }
+
   // Rendered as Studio's compact preview so it lines up with other references; the breadcrumb
   // is one line of inline text that truncates as a whole
   return (
@@ -92,10 +122,7 @@ export function AnchorBreadcrumb({anchorId}: {anchorId: string}) {
             <span style={SEPARATOR}>
               <ChevronRightIcon />
             </span>
-            {summary.title || t('anchor.untitled')}
-            {summary.slug ? (
-              <span style={{...MUTED, marginLeft: '0.5em'}}>#{summary.slug}</span>
-            ) : null}
+            {sectionLabel}
           </span>
         }
       />

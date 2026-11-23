@@ -289,7 +289,7 @@ defineField({name: 'jumpTo', title: 'Jump to', type: 'anchor'})
 - **In a link that points at a document**, the picker goes straight to that document's sections. The anchor can only be on the linked page, so there's no page to choose. Typing searches those sections.
 - **Anywhere else** (a standalone `anchor` field, or a link with no reference), the picker lists every document that has sections, with the current document first. Click a document to see its sections in page order. Typing searches all sections.
 
-The typed text is always offered as a custom fragment (`team` becomes `#team`). A selected section shows as a breadcrumb: `Page › Section #slug`.
+The typed text is always offered as a custom fragment (`team` becomes `#team`). A selected section shows as a breadcrumb, `Page › Section #slug`. Inside a link to that page, where the page is already shown next to it, it's just `Section #slug`.
 
 When a link's reference changes to another page (or to a URL), its section anchor is cleared, since it belonged to the old page. A custom `#fragment` is kept.
 

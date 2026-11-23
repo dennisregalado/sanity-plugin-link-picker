@@ -119,6 +119,8 @@ type PickerContextValue = {
   getIcon: (value: string) => ReactNode
   /** Whether focusing the input with this text should browse instead of searching for it. */
   isBrowseValue: (value: string) => boolean
+  /** The document the surrounding link points to; a selected section on it omits the page. */
+  linkedDocumentId?: string
   /** Element id of the keyboard-highlighted option, for aria-activedescendant */
   activeOptionId: string | undefined
   moveActiveOption: (delta: number) => void
@@ -153,6 +155,8 @@ type PickerFieldProps = {
   normalizeHref: PickerContextValue['normalizeHref']
   getIcon: PickerContextValue['getIcon']
   isBrowseValue: PickerContextValue['isBrowseValue']
+  /** The document the surrounding link points to, if any. */
+  linkedDocumentId?: string
   /** Renders the field; attach `setAnchorElement` to the element the popover is placed against. */
   children: (setAnchorElement: (element: HTMLDivElement | null) => void) => ReactNode
 }
@@ -172,6 +176,7 @@ export function PickerField({
   normalizeHref,
   getIcon,
   isBrowseValue,
+  linkedDocumentId,
   children,
 }: PickerFieldProps) {
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -277,6 +282,7 @@ export function PickerField({
       normalizeHref,
       getIcon,
       isBrowseValue,
+      linkedDocumentId,
       activeOptionId: activeOption ? getOptionId(popoverId, activeOption) : undefined,
       moveActiveOption,
       selectActiveOption,
@@ -290,6 +296,7 @@ export function PickerField({
       closePopover,
       getIcon,
       isBrowseValue,
+      linkedDocumentId,
       normalizeHref,
       openPopover,
       popoverId,
@@ -546,7 +553,12 @@ export function ReferencePreviewInput(props: InputProps) {
   let preview = null
   if (linkTarget && linkTarget.documentType === SECTION_ANCHOR_TYPE) {
     // Sections show where they live: Page › Section
-    preview = <AnchorBreadcrumb anchorId={linkTarget.documentId} />
+    preview = (
+      <AnchorBreadcrumb
+        anchorId={linkTarget.documentId}
+        linkedDocumentId={linkContext.linkedDocumentId}
+      />
+    )
   } else if (linkTarget) {
     preview = (
       <SearchResultItemPreview

@@ -16,7 +16,8 @@ All notable changes to this project are documented here. The format is based on
   - `sanity-plugin-link-picker/anchors`, with `syncSectionAnchors` for a Sanity Function that keeps
     `sectionAnchor` documents in sync with each document's `sections`, and `getSectionAnchors` for
     rendering matching section ids on the frontend.
-- A selected section shows as a breadcrumb (`Page › Section #slug`).
+- A selected section shows as a breadcrumb (`Page › Section #slug`), or as `Section #slug` inside
+  a link to the same page.
 - Inside a link that points at a document, the anchor picker lists only that document's sections;
   changing the link's target clears a section anchor (custom fragments are kept).
 
