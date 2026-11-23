@@ -230,11 +230,6 @@ linkPicker([route('Home', '/'), documents('Pages', 'page')], {
       title: 'Parameters',
       type: 'string',
     }),
-    defineField({
-      name: 'anchor',
-      title: 'Anchor',
-      type: 'string',
-    }),
   ],
   preview: {
     select: {
@@ -244,6 +239,8 @@ linkPicker([route('Home', '/'), documents('Pages', 'page')], {
   },
 })
 ```
+
+For links to page sections, use the built-in [section anchors](#section-anchors) instead of a custom `anchor` string field (the two can't share the name).
 
 Keep the default fields stable when possible. Most projects can model extra frontend behavior in GROQ or in their link resolver without changing the stored shape.
 
@@ -257,12 +254,142 @@ Keep the default fields stable when possible. Most projects can model extra fron
 | `options.fields`  | `FieldDefinition[]`                         | `[]`                            | Extra fields appended after `label`, `url` and `reference`.                                                                   |
 | `options.icon`    | component or element                        | none                            | Icon for the `link` type, shown in array item previews.                                                                       |
 | `options.preview` | `PreviewConfig`                             | label as title, URL as subtitle | Preview configuration for the `link` type.                                                                                    |
+| `options.anchors` | `{documentTypes: string[]}`                 | none                            | Enables [section anchors](#section-anchors) for documents of these types.                                                     |
 
 Field options (`options` on a `type: 'link'` field):
 
 | Option   | Type                                        | Description                                      |
 | -------- | ------------------------------------------- | ------------------------------------------------ |
 | `routes` | `LinkRouteDefinition[] \| LinksPluginProps` | Replaces the plugin-level routes for this field. |
+
+## Section Anchors
+
+Section anchors let editors link to a section of a page (`/about#team`) by picking it, instead of typing `#team` and hoping it still exists.
+
+They're opt-in:
+
+```ts
+linkPicker([documents('Pages', 'page')], {
+  anchors: {documentTypes: ['page']},
+})
+```
+
+This registers:
+
+- an `anchor` field type, `{url, reference}`, the same shape as a link: `url` holds a custom fragment like `#my-section`, `reference` a weak reference to a section;
+- an `anchor` field on `link`, after `reference` and before your custom `fields`;
+- a read-only `sectionAnchor` document type, one document per section, written by a Sanity Function (below).
+
+```ts
+defineField({name: 'jumpTo', title: 'Jump to', type: 'anchor'})
+```
+
+### The anchor picker
+
+The picker lists every document that has sections. Click a document to see its sections in page order, then pick one. The current document is listed first (for a link, the document it points to). Typing searches all sections, and the typed text is always offered as a custom fragment (`team` becomes `#team`). A selected section shows as a breadcrumb: `Page › Section #slug`.
+
+### Creating anchors with a Sanity Function
+
+A Function creates a `sectionAnchor` document for each section in a document's `sections` array, and keeps them in sync on publish:
+
+- the slug is generated from the section's heading (its `heading`, `title`, `name` or `label`) and made unique within the document (`features`, `features-2`);
+- the document id comes from the parent document and the section's `_key`, so links keep pointing at the same section when its heading (and slug) changes;
+- sections without a heading get no anchor; when a section or the whole document is deleted, its anchors are deleted, and links to them stop resolving (references are weak).
+
+Anchors are written for published documents only, so a new section can be picked once its page is published.
+
+```sh
+npm install @sanity/functions @sanity/client sanity-plugin-link-picker
+```
+
+```ts
+// sanity.blueprint.ts
+import {defineBlueprint, defineDocumentFunction} from '@sanity/blueprints'
+
+export default defineBlueprint({
+  resources: [
+    defineDocumentFunction({
+      name: 'section-anchors',
+      event: {
+        on: ['create', 'update', 'delete'],
+        filter: "_type in ['page'] && (defined(sections) || defined(before().sections))",
+        projection: '{_id, _type, sections, "operation": delta::operation()}',
+      },
+    }),
+  ],
+})
+```
+
+```ts
+// functions/section-anchors/index.ts
+import {createClient} from '@sanity/client'
+import {documentEventHandler} from '@sanity/functions'
+import {syncSectionAnchors} from 'sanity-plugin-link-picker/anchors'
+
+export const handler = documentEventHandler(async ({context, event}) => {
+  const client = createClient({...context.clientOptions, apiVersion: '2025-05-08', useCdn: false})
+  const result = await syncSectionAnchors(client, event.data, {dryRun: context.local})
+  console.log('section anchors', result)
+})
+```
+
+The `operation` in the projection is what lets the Function delete anchors when a document is deleted. Options for `syncSectionAnchors`:
+
+| Option     | Type                               | Default               | Description                                |
+| ---------- | ---------------------------------- | --------------------- | ------------------------------------------ |
+| `field`    | `string`                           | `'sections'`          | The array field holding the sections.      |
+| `getTitle` | `(section) => string \| undefined` | `heading`, `title`, … | Reads a section's heading.                 |
+| `dryRun`   | `boolean`                          | `false`               | Computes the changes without writing them. |
+
+`sanity-plugin-link-picker/anchors` has no dependency on `sanity` or React, so it is safe to use in Functions and frontends. To backfill anchors for existing pages, run `syncSectionAnchors` over them once from a script with a write token.
+
+`sectionAnchor` documents show up in the Structure tool's default list. To hide them:
+
+```ts
+structureTool({
+  structure: (S) =>
+    S.list()
+      .title('Content')
+      .items(S.documentTypeListItems().filter((item) => item.getId() !== 'sectionAnchor')),
+})
+```
+
+### Querying and rendering anchors
+
+```groq
+link {
+  label,
+  url,
+  reference->{_type, slug},
+  anchor {
+    url,
+    "slug": reference->slug.current
+  }
+}
+```
+
+```ts
+function resolveHref(link: ProjectedLink) {
+  // resolveLink from "Querying Links" above
+  const base = resolveLink(link) ?? ''
+  const hash = link.anchor?.url ?? (link.anchor?.slug ? `#${link.anchor.slug}` : '')
+  return base + hash || null
+}
+```
+
+Render each section with the matching `id`, using the same helper as the Function:
+
+```tsx
+import {getSectionAnchors} from 'sanity-plugin-link-picker/anchors'
+
+const ids = new Map(getSectionAnchors(page.sections).map((anchor) => [anchor.key, anchor.slug]))
+
+page.sections.map((section) => (
+  <Section key={section._key} id={ids.get(section._key)} {...section} />
+))
+```
+
+Pass the same `getTitle` to `getSectionAnchors` as to `syncSectionAnchors` if you customized it.
 
 ## Rendering links safely
 
@@ -471,7 +598,24 @@ import {
   type LinksPluginProps,
   type LinkSchemaType,
   type LinkInputProps,
+  // Section anchors
+  SECTION_ANCHOR_TYPE,
+  type AnchorValue,
+  type AnchorDefinition,
+  type AnchorInputProps,
+  type AnchorPluginOptions,
 } from 'sanity-plugin-link-picker'
+// Section anchors, for Sanity Functions and frontends (no `sanity` or React dependency)
+import {
+  syncSectionAnchors,
+  getSectionAnchors,
+  buildSectionAnchorDocuments,
+  getAnchorDocumentId,
+  getDefaultSectionTitle,
+  slugify,
+  SECTION_ANCHOR_TYPE,
+  DEFAULT_SECTIONS_FIELD,
+} from 'sanity-plugin-link-picker/anchors'
 ```
 
 ## Development

@@ -16,6 +16,15 @@ const linkPickerResources = {
   'folder.back': 'Back',
   /** Tooltip and accessible label for the button that replaces a selected reference */
   'reference.replace': 'Replace reference',
+  /** Header above the document an anchor field is on, or the page its link points to */
+  'anchor.current-document': 'This document',
+  'anchor.linked-document': 'Linked document',
+  /** Header above the other documents that have sections */
+  'anchor.documents': 'Documents with sections',
+  /** Shown when a selected section's anchor document no longer exists */
+  'anchor.missing': 'Section not found',
+  /** Fallback for a document or section without a title */
+  'anchor.untitled': 'Untitled',
 } as const
 
 export default linkPickerResources

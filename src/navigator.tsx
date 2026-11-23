@@ -44,11 +44,11 @@ import {
   type LinkRouteDefinition,
   type StaticLinkRoute,
 } from './routes'
-import {buildDocumentSearchQuery, SEARCH_PAGE_SIZE} from './search'
+import {buildDocumentSearchQuery, type DocumentBrowseSort, SEARCH_PAGE_SIZE} from './search'
 
-const DefaultIcon = () => <Text>✨</Text>
+export const DefaultIcon = () => <Text>✨</Text>
 
-const NAVIGATOR_MAX_HEIGHT = 390
+export const NAVIGATOR_MAX_HEIGHT = 390
 
 // @sanity/icons are drawn on a 25px grid with padding; 21px matches the old 16px glyphs
 const ICON_SIZE = 21
@@ -59,11 +59,11 @@ const VIRTUAL_ROW_ESTIMATE_SIZE = 52
 
 const SEARCH_DEBOUNCE_MS = 300
 
-const API_VERSION = '2025-02-19'
+export const API_VERSION = '2025-02-19'
 
 const NO_ROUTES: LinkRouteDefinition[] = []
 
-type RenderLinkIcon = () => React.ReactNode
+export type RenderLinkIcon = () => React.ReactNode
 
 const defaultLinkTypeIcons: Record<SystemLinkType, typeof LinkIcon> = {
   internal: LinkIcon,
@@ -84,7 +84,7 @@ type SearchRow =
   | {type: 'empty'}
   | {type: 'skeleton'; index: number}
 
-type SearchResultItem =
+export type SearchResultItem =
   | {
       type: 'document'
       document: SearchDocument
@@ -97,7 +97,7 @@ type SearchResultItem =
       icon?: () => React.ReactNode
     }
 
-type SearchDocument = {
+export type SearchDocument = {
   _id: string
   _type: string
   _originalId?: string
@@ -105,14 +105,30 @@ type SearchDocument = {
   title?: string
 }
 
+/** An item chosen in a picker navigator. */
+export type NavigatorSelection = {
+  label?: string
+  href?: string
+  reference?: string
+  _type?: string
+  _id?: string
+}
+
+/** Props shared by the link and anchor navigators. */
+export type BaseNavigatorProps = {
+  onSelect?: (item: NavigatorSelection) => void
+  onClose?: () => void
+  searchQuery?: string
+  /** Key of the option highlighted with the keyboard */
+  activeOption?: string | null
+  /** Prefix for option element ids, referenced by the input's aria-activedescendant */
+  optionIdPrefix?: string
+  /** Called when the visible options change because a folder was opened or closed */
+  onNavigate?: () => void
+}
+
 type NavigatorProps = {
-  onSelect?: (item: {
-    label?: string
-    href?: string
-    reference?: string
-    _type?: string
-    _id?: string
-  }) => void
+  onSelect?: (item: NavigatorSelection) => void
   onClose?: () => void
   routes?: LinkRouteDefinition[]
   searchQuery?: string
@@ -129,7 +145,7 @@ export function getOptionId(prefix: string, key: string): string {
   return `${prefix}-option-${encodeURIComponent(key)}`
 }
 
-type MenuItem = {
+export type MenuItem = {
   label?: string // Display name in UI
   href?: string // Navigation URL for 'page' type items
   type?: string // 'page' | 'folder' | 'group'
@@ -139,6 +155,8 @@ type MenuItem = {
   documentType?: string
   filter?: string
   filterParams?: QueryParams
+  /** How a document folder is sorted. Defaults to newest first. */
+  sort?: DocumentBrowseSort
 }
 
 function NormalizedLinkIcon({
@@ -279,13 +297,7 @@ type NavigationContextType = {
   navigationStack: MenuItem[] // Array of navigation history
   pushFolder: (folder: MenuItem) => void // Navigate into a folder
   popFolder: () => void // Go back one level
-  onSelect?: (item: {
-    label?: string
-    href?: string
-    reference?: string
-    _type?: string
-    _id?: string
-  }) => void
+  onSelect?: (item: NavigatorSelection) => void
   onClose?: () => void
   activeOption: string | null
   optionIdPrefix: string
@@ -297,7 +309,7 @@ const NavigationContext = createContext<NavigationContextType | null>(null)
  * Props that make a row a selectable picker option: a stable key for keyboard navigation, the id
  * used by aria-activedescendant, and the highlight when it's active.
  */
-function useOptionProps(key: string) {
+export function useOptionProps(key: string) {
   const {activeOption, optionIdPrefix} = useNavigation()
   const active = activeOption === key
   return {
@@ -313,7 +325,7 @@ function useOptionProps(key: string) {
 /** Keeps options scrolled into view below the pinned header row */
 const OPTION_STYLE = {scrollMarginTop: VIRTUAL_ROW_ESTIMATE_SIZE}
 
-function useNavigation() {
+export function useNavigation() {
   const context = useContext(NavigationContext)
   if (!context) {
     throw new Error('useNavigation must be used within NavigationProvider')
@@ -321,7 +333,7 @@ function useNavigation() {
   return context
 }
 
-function NavigationProvider({
+export function NavigationProvider({
   children,
   onClose,
   onSelect,
@@ -334,13 +346,7 @@ function NavigationProvider({
   onNavigate?: () => void
   activeOption: string | null
   optionIdPrefix: string
-  onSelect?: (item: {
-    label?: string
-    href?: string
-    reference?: string
-    _type?: string
-    _id?: string
-  }) => void
+  onSelect?: (item: NavigatorSelection) => void
 }) {
   const [navigationStack, setNavigationStack] = useState<MenuItem[]>([])
 
@@ -423,13 +429,7 @@ function NavigatorContent({
   const trimmedSearchQuery = searchQuery?.trim() || ''
 
   return (
-    <div
-      style={{
-        height: 'min-content',
-        maxHeight: NAVIGATOR_MAX_HEIGHT,
-        overflow: 'hidden',
-      }}
-    >
+    <NavigatorFrame>
       {trimmedSearchQuery ? (
         <SearchResults
           documentTypes={documentTypes}
@@ -441,6 +441,21 @@ function NavigatorContent({
       ) : (
         <PageMenu menuItems={propMenuItems} />
       )}
+    </NavigatorFrame>
+  )
+}
+
+/** Caps the navigator's height; lists scroll inside it. */
+export function NavigatorFrame({children}: {children: React.ReactNode}) {
+  return (
+    <div
+      style={{
+        height: 'min-content',
+        maxHeight: NAVIGATOR_MAX_HEIGHT,
+        overflow: 'hidden',
+      }}
+    >
+      {children}
     </div>
   )
 }
@@ -449,13 +464,15 @@ type DocumentSearchOptions = {
   debounceMs?: number
   filter?: string
   filterParams?: QueryParams
-  /** `browse` lists a folder newest-first instead of ranking by a search query. */
+  /** `browse` lists a folder (newest first by default) instead of ranking by a search query. */
   mode?: 'search' | 'browse'
+  /** Browse order */
+  sort?: DocumentBrowseSort
 }
 
 type Subscription = {unsubscribe: () => void}
 
-function formatResultCount(
+export function formatResultCount(
   t: ReturnType<typeof useTranslation>['t'],
   count: number,
   hasMore: boolean,
@@ -483,12 +500,12 @@ const EMPTY_SEARCH_STATE: DocumentSearchState = {
   loadingMore: false,
 }
 
-function useDocumentSearch(
+export function useDocumentSearch(
   query: string,
   documentTypes: string[],
   options: DocumentSearchOptions = {},
 ) {
-  const {debounceMs = SEARCH_DEBOUNCE_MS, filter, filterParams, mode = 'search'} = options
+  const {debounceMs = SEARCH_DEBOUNCE_MS, filter, filterParams, mode = 'search', sort} = options
   const client = useClient({apiVersion: API_VERSION})
   const schema = useSchema()
   const {perspectiveStack} = usePerspective()
@@ -502,8 +519,9 @@ function useDocumentSearch(
       schemaTypes: documentTypes.map((name) => schema.get(name)),
       filter,
       filterParams,
+      sort,
     })
-  }, [documentTypes, filter, filterParams, mode, query, schema])
+  }, [documentTypes, filter, filterParams, mode, query, schema, sort])
   const requestKey = request ? JSON.stringify([request, perspectiveStack]) : null
 
   const fetchPage = useCallback(
@@ -586,17 +604,20 @@ function uniqueById(documents: SearchDocument[]): SearchDocument[] {
   return documents.filter((document) => !seen.has(document._id) && Boolean(seen.add(document._id)))
 }
 
-function SearchResults({
+export function SearchResults({
   documentTypes,
   query,
   staticRoutes,
+  getTypedResult = getTypedLinkResult,
 }: {
   documentTypes: string[]
   query: string
   staticRoutes: StaticLinkRoute[]
+  /** The option for using the typed text as-is, shown first. Defaults to a normalized link. */
+  getTypedResult?: (query: string) => SearchResultItem | null
 }) {
   const perspective = usePerspective()
-  const typedLinkResult = useMemo(() => getTypedLinkResult(query), [query])
+  const typedLinkResult = useMemo(() => getTypedResult(query), [getTypedResult, query])
   const staticResults = useMemo(
     () =>
       staticRoutes
@@ -807,7 +828,7 @@ function MenuItemRow({item}: {item: MenuItem}) {
   return <PageItem item={item} optionKey={`route:${item.href}`} />
 }
 
-function Folder({item}: {item: MenuItem}) {
+export function Folder({item}: {item: MenuItem}) {
   const {popFolder} = useNavigation()
   const backOptionProps = useOptionProps('back')
   const perspective = usePerspective()
@@ -826,6 +847,7 @@ function Folder({item}: {item: MenuItem}) {
     filter: item.filter,
     filterParams: item.filterParams,
     mode: 'browse',
+    sort: item.sort,
   })
 
   const rows = useMemo<FolderRow[]>(() => {
@@ -944,9 +966,9 @@ const estimateRowSize = () => VIRTUAL_ROW_ESTIMATE_SIZE
 const NO_PINNED_ROWS: number[] = []
 
 /** The header/back row stays pinned above the scrolling list */
-const PINNED_FIRST_ROW = [0]
+export const PINNED_FIRST_ROW = [0]
 
-function ScrollableList<T>({
+export function ScrollableList<T>({
   estimateSize = estimateRowSize,
   getKey,
   items,
@@ -1082,7 +1104,7 @@ function PageItem({item, optionKey}: {item: MenuItem; optionKey: string}) {
 }
 
 /** The document's preview title, used as the link label when it's selected. */
-function usePreviewTitle(
+export function usePreviewTitle(
   documentId: string | undefined,
   schemaType: SchemaType | undefined,
   perspectiveStack: PerspectiveStack | undefined,
@@ -1183,7 +1205,7 @@ const VISUALLY_HIDDEN: React.CSSProperties = {
 }
 
 /** Announces result counts to screen readers; visually hidden. */
-function ResultAnnouncement({children}: {children: React.ReactNode}) {
+export function ResultAnnouncement({children}: {children: React.ReactNode}) {
   return (
     <output aria-live="polite" style={VISUALLY_HIDDEN}>
       {children}
@@ -1191,7 +1213,7 @@ function ResultAnnouncement({children}: {children: React.ReactNode}) {
   )
 }
 
-function SkeletonItem() {
+export function SkeletonItem() {
   return (
     <Button mode="bleed" width="fill" padding={1} disabled>
       <Box style={{width: '100%'}}>
@@ -1201,7 +1223,7 @@ function SkeletonItem() {
   )
 }
 
-function EmptyFolderState() {
+export function EmptyFolderState() {
   const {t} = useTranslation(linkPickerLocaleNamespace)
 
   return (

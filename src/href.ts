@@ -109,3 +109,17 @@ function looksLikeDomain(value: string) {
 
   return /^(?:[a-z0-9-]+\.)+[a-z]{2,63}(?::\d+)?(?:[/?#].*)?$/i.test(value)
 }
+
+/**
+ * Normalizes what an editor types into an anchor's `url`: a fragment such as `#team`. A leading
+ * `#` is added and whitespace becomes dashes. Returns `null` for empty input.
+ */
+export function normalizeAnchorHref(value: string | null | undefined): string | null {
+  const fragment = value?.trim().replace(/^#+/, '').trim().replace(/\s+/g, '-')
+  return fragment ? `#${fragment}` : null
+}
+
+/** Whether a value is a valid anchor `url`: `#` followed by characters other than whitespace and `#`. */
+export function isAnchorHref(value: string): boolean {
+  return /^#[^\s#]+$/.test(value)
+}

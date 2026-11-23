@@ -27,11 +27,16 @@
       "source": "./src/index.ts",
       "default": "./dist/index.js"
     },
+    "./anchors": {
+      "source": "./src/anchors/index.ts",
+      "default": "./dist/anchors.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "exports": {
       ".": "./dist/index.js",
+      "./anchors": "./dist/anchors.js",
       "./package.json": "./package.json"
     }
   },

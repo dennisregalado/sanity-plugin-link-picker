@@ -22,6 +22,20 @@ describe('prefixLast', () => {
 })
 
 describe('buildDocumentSearchQuery', () => {
+  it('browses by the `order` field when asked', () => {
+    const {query} = buildDocumentSearchQuery({
+      mode: 'browse',
+      query: '',
+      typeNames: ['sectionAnchor'],
+      schemaTypes: [schemaType('sectionAnchor')],
+      filter: 'parent._ref == $anchorParentId',
+      filterParams: {anchorParentId: 'page-1'},
+      sort: 'order',
+    })
+    expect(query).toContain('| order(order asc, _updatedAt desc)')
+    expect(query).toContain('(parent._ref == $anchorParentId)')
+  })
+
   it('browses a folder newest first, with the folder filter', () => {
     const {query, params} = buildDocumentSearchQuery({
       mode: 'browse',

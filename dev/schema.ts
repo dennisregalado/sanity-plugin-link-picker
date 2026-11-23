@@ -9,6 +9,27 @@ const linkable = ['page', 'product', 'collection'].map((name) =>
     fields: [
       defineField({name: 'title', type: 'string'}),
       defineField({name: 'slug', type: 'slug'}),
+      // Pages have sections; the anchors Function turns each one into a `sectionAnchor` document
+      ...(name === 'page'
+        ? [
+            defineField({
+              name: 'sections',
+              type: 'array',
+              of: [
+                defineArrayMember({
+                  name: 'hero',
+                  type: 'object',
+                  fields: [defineField({name: 'heading', type: 'string'})],
+                }),
+                defineArrayMember({
+                  name: 'textSection',
+                  type: 'object',
+                  fields: [defineField({name: 'title', type: 'string'})],
+                }),
+              ],
+            }),
+          ]
+        : []),
     ],
   }),
 )
@@ -64,4 +85,24 @@ const linkDemo = defineType({
   ],
 })
 
+/** Section anchors, for the `anchors` workspace (which registers the `anchor` type). */
+const anchorDemo = defineType({
+  name: 'anchorDemo',
+  title: 'Anchor demo',
+  type: 'document',
+  fields: [
+    defineField({name: 'title', type: 'string'}),
+    defineField({name: 'link', title: 'Link with anchor', type: 'link'}),
+    defineField({name: 'jumpTo', title: 'Standalone anchor', type: 'anchor'}),
+    defineField({
+      name: 'tableOfContents',
+      title: 'Anchor list',
+      type: 'array',
+      of: [defineArrayMember({type: 'anchor'})],
+    }),
+  ],
+})
+
 export const schemaTypes = [...linkable, linkDemo]
+
+export const anchorSchemaTypes = [...schemaTypes, anchorDemo]

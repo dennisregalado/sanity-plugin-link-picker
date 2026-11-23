@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Section anchors, enabled with `linkPicker(routes, {anchors: {documentTypes}})`:
+  - an `anchor` field type, `{url, reference}`, with a picker that browses documents with sections
+    and their sections, searches all sections, and accepts a custom `#fragment`;
+  - an `anchor` field on `link`;
+  - a read-only `sectionAnchor` document type;
+  - `sanity-plugin-link-picker/anchors`, with `syncSectionAnchors` for a Sanity Function that keeps
+    `sectionAnchor` documents in sync with each document's `sections`, and `getSectionAnchors` for
+    rendering matching section ids on the frontend.
+- A selected section shows as a breadcrumb (`Page › Section #slug`).
+
 ## [2.1.0] - 2026-11-17
 
 Requires Sanity Studio `^6.10.0` and React `^19.2`. Coming from 2.0.0, see
