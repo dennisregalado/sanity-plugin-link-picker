@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- A link URL that exactly matches a preset route (`route('Home', '/')`) shows as that route
+  outside editing: a card with the route's icon, title and path, like a selected reference.
+  Clicking it brings back the text input, focused, with the picker open; the pencil clears the URL
+  and opens the picker. Other URLs keep the text input.
+
 ### Fixed
 
 - A selected section with a long page or section title no longer wraps out of the field. It stays

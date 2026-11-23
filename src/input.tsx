@@ -106,6 +106,12 @@ export function withInputComponent(
   }
 }
 
+/** A preset route a link value matches: `route('Home', '/')`. */
+type LinkPreset = {
+  title: string
+  icon?: () => ReactNode
+}
+
 type PickerContextValue = {
   openPopover: () => void
   closePopover: () => void
@@ -125,6 +131,8 @@ type PickerContextValue = {
   linkedDocumentId?: string
   /** The array field holding a document's sections, used to open a page at a section. */
   sectionsField?: string
+  /** The preset route a saved value matches, shown as a card instead of the text input. */
+  getPreset?: (value: string) => LinkPreset | null
   /** Element id of the keyboard-highlighted option, for aria-activedescendant */
   activeOptionId: string | undefined
   moveActiveOption: (delta: number) => void
@@ -163,6 +171,7 @@ type PickerFieldProps = {
   linkedDocumentId?: string
   /** The array field holding a document's sections, used to open a page at a section. */
   sectionsField?: string
+  getPreset?: PickerContextValue['getPreset']
   /** Renders the field; attach `setAnchorElement` to the element the popover is placed against. */
   children: (setAnchorElement: (element: HTMLDivElement | null) => void) => ReactNode
 }
@@ -184,6 +193,7 @@ export function PickerField({
   isBrowseValue,
   linkedDocumentId,
   sectionsField,
+  getPreset,
   children,
 }: PickerFieldProps) {
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -291,6 +301,7 @@ export function PickerField({
       isBrowseValue,
       linkedDocumentId,
       sectionsField,
+      getPreset,
       activeOptionId: activeOption ? getOptionId(popoverId, activeOption) : undefined,
       moveActiveOption,
       selectActiveOption,
@@ -303,6 +314,7 @@ export function PickerField({
       canOpenPopover,
       closePopover,
       getIcon,
+      getPreset,
       isBrowseValue,
       linkedDocumentId,
       normalizeHref,
@@ -432,6 +444,19 @@ export function LinkInput(props: LinkInputProps) {
     [flattenedRoutes],
   )
 
+  // A saved value that is exactly a preset route's path shows as that route, like a reference
+  const getPreset = useCallback(
+    (href: string): LinkPreset | null => {
+      const route = href ? flattenedRoutes.find((item) => item.path === href) : undefined
+      if (!route) return null
+      return {
+        title: route.title,
+        icon: normalizeLinkIcon(route.icon) ?? getSystemLinkIcon(route.path),
+      }
+    },
+    [flattenedRoutes],
+  )
+
   const isBrowseValue = useCallback(
     (draftValue: string) =>
       normalizeLinkHref(draftValue) === draftValue.trim() ||
@@ -456,6 +481,7 @@ export function LinkInput(props: LinkInputProps) {
       renderNavigator={renderNavigator}
       normalizeHref={normalizeLinkHref}
       getIcon={getIcon}
+      getPreset={getPreset}
       isBrowseValue={isBrowseValue}
     >
       {(setAnchorElement) => (
@@ -720,7 +746,10 @@ function URLInput(props: StringInputProps) {
   const [draftValue, setDraftValue] = useState(savedValue)
   const [isFocused, setFocused] = useState(false)
   const [previousValue, setPreviousValue] = useState(savedValue)
+  // Set when the preset card is clicked: show the text input and move focus into it
+  const [editing, setEditing] = useState(false)
   const {normalizeHref} = linkContext
+  const inputId = elementProps.id
 
   // Follow external changes to the saved value (selection in the picker, other editors), unless
   // the user is in the middle of typing a search.
@@ -760,6 +789,7 @@ function URLInput(props: StringInputProps) {
     'onBlur': (event: FocusEvent<HTMLInputElement>) => {
       elementProps.onBlur(event)
       setFocused(false)
+      setEditing(false)
       commitDraftValue()
       linkContext.closePopover()
     },
@@ -815,5 +845,107 @@ function URLInput(props: StringInputProps) {
     },
   }
 
+  const preset = linkContext.getPreset?.(savedValue) ?? null
+  const showPreset = Boolean(preset) && !isFocused && !editing && !props.focused
+
+  // The text input mounts on the render after the card is clicked; focus it once it's there
+  useEffect(() => {
+    if (editing && !isFocused) document.getElementById(inputId)?.focus()
+  }, [editing, inputId, isFocused])
+
+  if (preset && showPreset) {
+    return (
+      <PresetLinkPreview
+        href={savedValue}
+        preset={preset}
+        readOnly={readOnly}
+        onEdit={() => setEditing(true)}
+        onReplace={() => {
+          setEditing(true)
+          linkContext.replaceReference(props)
+        }}
+      />
+    )
+  }
+
   return renderDefault({...props, elementProps: urlElementProps})
+}
+
+const MUTED_TEXT: React.CSSProperties = {color: 'var(--card-muted-fg-color)', marginLeft: '0.5em'}
+
+const SINGLE_LINE: React.CSSProperties = {
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+/**
+ * A URL that matches a preset route, shown like a selected reference: the route's icon, title and
+ * path. Clicking it edits the URL; the pencil clears it and opens the picker.
+ */
+function PresetLinkPreview({
+  href,
+  preset,
+  readOnly,
+  onEdit,
+  onReplace,
+}: {
+  href: string
+  preset: LinkPreset
+  readOnly?: boolean
+  onEdit: () => void
+  onReplace: () => void
+}) {
+  const {t} = useTranslation(linkPickerLocaleNamespace)
+
+  return (
+    <Card border radius={2} overflow="hidden">
+      <Flex align="center" style={{height: 33}}>
+        <Box flex={1} style={{minWidth: 0}}>
+          <Button
+            aria-label={t('link.edit')}
+            disabled={readOnly}
+            mode="bleed"
+            padding={0}
+            width="fill"
+            style={{clipPath: 'inset(3px round 2px)'}}
+            onClick={onEdit}
+          >
+            <Box style={{width: '100%'}}>
+              <SanityDefaultPreview
+                icon={preset.icon ? undefined : false}
+                layout="compact"
+                media={preset.icon}
+                title={
+                  <span style={SINGLE_LINE} title={href}>
+                    {preset.title}
+                    <span style={MUTED_TEXT}>{href}</span>
+                  </span>
+                }
+              />
+            </Box>
+          </Button>
+        </Box>
+        <Tooltip
+          animate
+          content={
+            <Text size={1} weight="medium">
+              {t('link.replace')}
+            </Text>
+          }
+          placement="top"
+        >
+          <Button
+            aria-label={t('link.replace')}
+            style={{clipPath: 'inset(3px round 2px)'}}
+            disabled={readOnly}
+            icon={EditIcon}
+            mode="bleed"
+            onClick={onReplace}
+          />
+        </Tooltip>
+      </Flex>
+    </Card>
+  )
 }

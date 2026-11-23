@@ -16,6 +16,10 @@ const linkPickerResources = {
   'folder.back': 'Back',
   /** Tooltip and accessible label for the button that replaces a selected reference */
   'reference.replace': 'Replace reference',
+  /** Accessible label for a URL shown as its preset route; clicking it edits the URL */
+  'link.edit': 'Edit link',
+  /** Tooltip and accessible label for the button that clears a preset route link */
+  'link.replace': 'Replace link',
   /** Header above the document an anchor field is on */
   'anchor.current-document': 'This document',
   /** Header above the sections of the document an anchor's link points to */
