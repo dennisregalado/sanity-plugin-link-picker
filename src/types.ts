@@ -57,6 +57,11 @@ export type LinkValue = {
 export interface AnchorPluginOptions {
   /** Document types that have sections. Their sections are listed in the anchor picker. */
   documentTypes: string[]
+  /**
+   * The array field holding a document's sections, as passed to `syncSectionAnchors`. Clicking a
+   * selected section opens its page at this field. Defaults to `sections`.
+   */
+  field?: string
 }
 
 /**

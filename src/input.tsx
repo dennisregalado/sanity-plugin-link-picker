@@ -35,8 +35,8 @@ import {
 } from 'sanity'
 import {type RouterPanes, usePaneRouter} from 'sanity/structure'
 
-import {AnchorBreadcrumb} from './anchor-breadcrumb'
-import {SECTION_ANCHOR_TYPE} from './anchors'
+import {AnchorBreadcrumb, useAnchorSummary} from './anchor-breadcrumb'
+import {DEFAULT_SECTIONS_FIELD, SECTION_ANCHOR_TYPE} from './anchors'
 import {normalizeLinkHref} from './href'
 import {linkPickerLocaleNamespace} from './i18n'
 import {
@@ -121,6 +121,8 @@ type PickerContextValue = {
   isBrowseValue: (value: string) => boolean
   /** The document the surrounding link points to; a selected section on it omits the page. */
   linkedDocumentId?: string
+  /** The array field holding a document's sections, used to open a page at a section. */
+  sectionsField?: string
   /** Element id of the keyboard-highlighted option, for aria-activedescendant */
   activeOptionId: string | undefined
   moveActiveOption: (delta: number) => void
@@ -157,6 +159,8 @@ type PickerFieldProps = {
   isBrowseValue: PickerContextValue['isBrowseValue']
   /** The document the surrounding link points to, if any. */
   linkedDocumentId?: string
+  /** The array field holding a document's sections, used to open a page at a section. */
+  sectionsField?: string
   /** Renders the field; attach `setAnchorElement` to the element the popover is placed against. */
   children: (setAnchorElement: (element: HTMLDivElement | null) => void) => ReactNode
 }
@@ -177,6 +181,7 @@ export function PickerField({
   getIcon,
   isBrowseValue,
   linkedDocumentId,
+  sectionsField,
   children,
 }: PickerFieldProps) {
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -283,6 +288,7 @@ export function PickerField({
       getIcon,
       isBrowseValue,
       linkedDocumentId,
+      sectionsField,
       activeOptionId: activeOption ? getOptionId(popoverId, activeOption) : undefined,
       moveActiveOption,
       selectActiveOption,
@@ -298,6 +304,7 @@ export function PickerField({
       isBrowseValue,
       linkedDocumentId,
       normalizeHref,
+      sectionsField,
       openPopover,
       popoverId,
       popoverOpen,
@@ -530,7 +537,7 @@ export function ReferencePreviewInput(props: InputProps) {
   const linkContext = usePickerContext()
   const {t} = useTranslation(linkPickerLocaleNamespace)
   const perspective = usePerspective()
-  const {ReferenceChildLink, groupIndex, groupLength, routerPanesState} = usePaneRouter()
+  const {ChildLink, ReferenceChildLink, groupIndex, groupLength, routerPanesState} = usePaneRouter()
   // Outside the Structure and Presentation tools there is no pane router to open references in
   const hasPaneRouter = groupLength > 0
   const reference: Partial<ReferenceValue> | undefined =
@@ -545,19 +552,31 @@ export function ReferencePreviewInput(props: InputProps) {
     : undefined
   const linkTarget =
     documentId && documentType && refType ? {documentId, documentType, refType} : null
+
+  // A section opens the page it's on, at the section, rather than its read-only anchor document
+  const isSection = linkTarget?.documentType === SECTION_ANCHOR_TYPE
+  const anchorSummary = useAnchorSummary(isSection ? documentId : undefined)
+  const sectionTarget =
+    isSection && anchorSummary?.parentId && anchorSummary.parentType
+      ? {
+          documentId: anchorSummary.parentId,
+          documentType: anchorSummary.parentType,
+          path: anchorSummary.sectionKey
+            ? `${linkContext.sectionsField ?? DEFAULT_SECTIONS_FIELD}[_key==${JSON.stringify(anchorSummary.sectionKey)}]`
+            : undefined,
+        }
+      : null
+  const paneTarget = isSection ? sectionTarget : linkTarget
   const referencePaneOpen =
-    linkTarget && hasPaneRouter
-      ? isReferencePaneOpen(routerPanesState, groupIndex, linkTarget)
+    paneTarget && hasPaneRouter
+      ? isReferencePaneOpen(routerPanesState, groupIndex, paneTarget)
       : false
 
   let preview = null
-  if (linkTarget && linkTarget.documentType === SECTION_ANCHOR_TYPE) {
+  if (isSection) {
     // Sections show where they live: Page › Section
     preview = (
-      <AnchorBreadcrumb
-        anchorId={linkTarget.documentId}
-        linkedDocumentId={linkContext.linkedDocumentId}
-      />
+      <AnchorBreadcrumb summary={anchorSummary} linkedDocumentId={linkContext.linkedDocumentId} />
     )
   } else if (linkTarget) {
     preview = (
@@ -602,7 +621,23 @@ export function ReferencePreviewInput(props: InputProps) {
       {preview}
     </Button>
   )
-  if (linkTarget && hasPaneRouter) {
+  if (isSection && sectionTarget && hasPaneRouter) {
+    target = (
+      <ChildLink
+        childId={sectionTarget.documentId}
+        // No parentRefPath: Studio would compare the page with the anchor reference and report
+        // that the reference changed. The row's highlight comes from isReferencePaneOpen instead.
+        childParameters={{
+          type: sectionTarget.documentType,
+          ...(sectionTarget.path ? {path: sectionTarget.path} : {}),
+        }}
+      >
+        {previewButton}
+      </ChildLink>
+    )
+  } else if (isSection) {
+    target = sectionTarget ? previewButton : target
+  } else if (linkTarget && hasPaneRouter) {
     target = (
       <ReferenceChildLink
         documentId={linkTarget.documentId}

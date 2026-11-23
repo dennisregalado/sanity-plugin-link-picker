@@ -88,6 +88,7 @@ export function AnchorInput(props: AnchorInputProps) {
       getIcon={getAnchorIcon}
       isBrowseValue={isBrowseValue}
       linkedDocumentId={contextDocument?.kind === 'linked' ? contextDocument._id : undefined}
+      sectionsField={props.pluginOptions.field}
     >
       {(setAnchorElement) => (
         <Stack gap={5}>

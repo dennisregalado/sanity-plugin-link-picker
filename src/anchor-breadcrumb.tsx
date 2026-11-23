@@ -8,7 +8,8 @@ import {SanityDefaultPreview, useClient, usePerspective, useSchema, useTranslati
 import {linkPickerLocaleNamespace} from './i18n'
 import {API_VERSION, usePreviewTitle} from './navigator'
 
-type AnchorSummary = {
+export type AnchorSummary = {
+  sectionKey?: string
   title?: string
   slug?: string
   parentId?: string
@@ -18,17 +19,22 @@ type AnchorSummary = {
 const ANCHOR_SUMMARY_QUERY = `*[_id == $id][0]{
   title,
   "slug": slug.current,
+  sectionKey,
   "parentId": parent._ref,
   "parentType": parent->_type
 }`
 
-/** The anchor document's title, slug and parent, in the current perspective. */
-function useAnchorSummary(anchorId: string): AnchorSummary | null | undefined {
+/**
+ * The anchor document's title, slug, section key and parent, in the current perspective.
+ * `undefined` while loading (or without an id), `null` when the anchor doesn't exist.
+ */
+export function useAnchorSummary(anchorId: string | undefined): AnchorSummary | null | undefined {
   const client = useClient({apiVersion: API_VERSION})
   const {perspectiveStack} = usePerspective()
   const [resolved, setResolved] = useState<{id: string; summary: AnchorSummary | null} | null>(null)
 
   useEffect(() => {
+    if (!anchorId) return undefined
     const subscription = client.observable
       .fetch<AnchorSummary | null>(
         ANCHOR_SUMMARY_QUERY,
@@ -43,7 +49,7 @@ function useAnchorSummary(anchorId: string): AnchorSummary | null | undefined {
   }, [anchorId, client, perspectiveStack])
 
   // undefined while loading, null when the anchor doesn't exist
-  return resolved?.id === anchorId ? resolved.summary : undefined
+  return anchorId && resolved?.id === anchorId ? resolved.summary : undefined
 }
 
 const MUTED: React.CSSProperties = {color: 'var(--card-muted-fg-color)'}
@@ -54,10 +60,11 @@ const SEPARATOR: React.CSSProperties = {...MUTED, margin: '0 0.25em', verticalAl
  * A selected section shown as a breadcrumb: `[page icon] Page › Section #slug`.
  */
 export function AnchorBreadcrumb({
-  anchorId,
+  summary,
   linkedDocumentId,
 }: {
-  anchorId: string
+  /** From {@link useAnchorSummary} */
+  summary: AnchorSummary | null | undefined
   /**
    * The document the surrounding link points to. When the section is on it, the page name is
    * already shown next to the field, so only `Section #slug` is shown.
@@ -67,7 +74,6 @@ export function AnchorBreadcrumb({
   const {t} = useTranslation(linkPickerLocaleNamespace)
   const schema = useSchema()
   const {perspectiveStack} = usePerspective()
-  const summary = useAnchorSummary(anchorId)
   const parentSchemaType = summary?.parentType ? schema.get(summary.parentType) : undefined
   const parentTitle = usePreviewTitle(summary?.parentId, parentSchemaType, perspectiveStack)
 

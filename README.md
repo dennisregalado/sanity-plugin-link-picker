@@ -254,7 +254,7 @@ Keep the default fields stable when possible. Most projects can model extra fron
 | `options.fields`  | `FieldDefinition[]`                         | `[]`                            | Extra fields appended after `label`, `url` and `reference`.                                                                   |
 | `options.icon`    | component or element                        | none                            | Icon for the `link` type, shown in array item previews.                                                                       |
 | `options.preview` | `PreviewConfig`                             | label as title, URL as subtitle | Preview configuration for the `link` type.                                                                                    |
-| `options.anchors` | `{documentTypes: string[]}`                 | none                            | Enables [section anchors](#section-anchors) for documents of these types.                                                     |
+| `options.anchors` | `{documentTypes: string[], field?: string}` | none                            | Enables [section anchors](#section-anchors) for documents of these types. `field` is the sections array (default `sections`). |
 
 Field options (`options` on a `type: 'link'` field):
 
@@ -290,6 +290,8 @@ defineField({name: 'jumpTo', title: 'Jump to', type: 'anchor'})
 - **Anywhere else** (a standalone `anchor` field, or a link with no reference), the picker lists every document that has sections, with the current document first. Click a document to see its sections in page order. Typing searches all sections.
 
 The typed text is always offered as a custom fragment (`team` becomes `#team`). A selected section shows as a breadcrumb, `Page › Section #slug`. Inside a link to that page, where the page is already shown next to it, it's just `Section #slug`.
+
+Clicking a selected section opens its page in a pane to the right, with that section open for editing. If your sections field isn't called `sections`, set `anchors: {documentTypes, field: 'blocks'}`, matching the `field` you pass to `syncSectionAnchors`.
 
 When a link's reference changes to another page (or to a URL), its section anchor is cleared, since it belonged to the old page. A custom `#fragment` is kept.
 

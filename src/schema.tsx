@@ -137,7 +137,7 @@ export function createLinkType(
 
 /** Builds the `anchor` object type: a custom `#fragment` or a reference to a section. */
 export function createAnchorType(options: AnchorPluginOptions) {
-  const pluginOptions = {documentTypes: options.documentTypes}
+  const pluginOptions = {documentTypes: options.documentTypes, field: options.field}
 
   return defineType({
     name: 'anchor',

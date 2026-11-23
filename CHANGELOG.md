@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format is based on
   a link to the same page.
 - Inside a link that points at a document, the anchor picker lists only that document's sections;
   changing the link's target clears a section anchor (custom fragments are kept).
+- Clicking a selected section opens its page at that section (`anchors.field`, default `sections`).
 
 ## [2.1.0] - 2026-11-17
 
