@@ -126,8 +126,6 @@ type PickerContextValue = {
   replaceReference: (inputProps: InputProps) => void
   /** Turns typed text into the stored `url`, or `null` when it isn't a valid value. */
   normalizeHref: (value: string) => string | null
-  /** Icon component shown in the URL input for the typed text, rendered natively by Sanity UI. */
-  getIcon: (value: string) => ElementType | undefined
   /** Whether focusing the input with this text should browse instead of searching for it. */
   isBrowseValue: (value: string) => boolean
   /** The document the surrounding link points to; a selected section on it omits the page. */
@@ -168,7 +166,6 @@ type PickerFieldProps = {
   onSelect: (selection: LinkSelection) => void
   renderNavigator: (props: PickerNavigatorProps) => ReactNode
   normalizeHref: PickerContextValue['normalizeHref']
-  getIcon: PickerContextValue['getIcon']
   isBrowseValue: PickerContextValue['isBrowseValue']
   /** The document the surrounding link points to, if any. */
   linkedDocumentId?: string
@@ -192,7 +189,6 @@ export function PickerField({
   onSelect,
   renderNavigator,
   normalizeHref,
-  getIcon,
   isBrowseValue,
   linkedDocumentId,
   sectionsField,
@@ -300,7 +296,6 @@ export function PickerField({
       setSearchQuery,
       replaceReference,
       normalizeHref,
-      getIcon,
       isBrowseValue,
       linkedDocumentId,
       sectionsField,
@@ -316,7 +311,6 @@ export function PickerField({
       setSearchQuery,
       canOpenPopover,
       closePopover,
-      getIcon,
       getPreset,
       isBrowseValue,
       linkedDocumentId,
@@ -428,26 +422,6 @@ export function LinkInput(props: LinkInputProps) {
     if (hasSectionAnchor) onChange(unset(['anchor', 'reference']))
   }, [hasSectionAnchor, onChange])
 
-  const getIcon = useCallback(
-    (draftValue: string) => {
-      const normalizedHref = normalizeLinkHref(draftValue)
-      const matchedRoute = normalizedHref
-        ? flattenedRoutes.find((item) => item.path === normalizedHref)
-        : null
-
-      if (matchedRoute?.icon) {
-        return normalizeLinkIcon(matchedRoute.icon)
-      }
-
-      if (normalizedHref) {
-        return getSystemLinkIcon(normalizedHref)
-      }
-
-      return undefined
-    },
-    [flattenedRoutes],
-  )
-
   // Shown as a card instead of the text input when not editing: a preset route's path shows as
   // that route; any other valid email or phone link shows its address or number
   const getPreset = useCallback(
@@ -496,7 +470,6 @@ export function LinkInput(props: LinkInputProps) {
       onSelect={handleSelect}
       renderNavigator={renderNavigator}
       normalizeHref={normalizeLinkHref}
-      getIcon={getIcon}
       getPreset={getPreset}
       isBrowseValue={isBrowseValue}
     >
@@ -799,7 +772,6 @@ function URLInput(props: StringInputProps) {
     'aria-expanded': linkContext.canOpenPopover ? pickerOpen : undefined,
     'aria-controls': pickerOpen ? linkContext.popoverId : undefined,
     'aria-activedescendant': pickerOpen ? linkContext.activeOptionId : undefined,
-    'icon': linkContext.getIcon(draftValue),
     'value': draftValue,
     'clearButton': draftValue && !readOnly ? {icon: CloseIcon} : false,
     'onBlur': (event: FocusEvent<HTMLInputElement>) => {

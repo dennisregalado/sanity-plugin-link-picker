@@ -15,8 +15,10 @@ All notable changes to this project are documented here. The format is based on
 ### Changed
 
 - Link icons render at Studio's native size and alignment: `@sanity/icons` (and any component
-  icon) are passed straight to previews and the URL input instead of through a fixed-size
-  wrapper. Emoji and element icons are wrapped to match.
+  icon) are passed straight to previews instead of through a fixed-size wrapper. Emoji and element
+  icons are wrapped to match.
+- The URL text input no longer shows a link-type icon while typing; icons stay on cards and picker
+  options.
 - `defineLinkMenu()` no longer warns about route paths that are full URLs or `mailto:`/`tel:`
   links, only about other paths that don't start with `/`.
 
