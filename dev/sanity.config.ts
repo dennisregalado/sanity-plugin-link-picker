@@ -2,7 +2,7 @@ import {defineConfig, defineField} from 'sanity'
 import {documents, group, linkPicker, route} from 'sanity-plugin-link-picker'
 import {structureTool} from 'sanity/structure'
 
-import {schemaTypes} from './schema'
+import {anchorSchemaTypes, schemaTypes} from './schema'
 
 const projectId = process.env.SANITY_STUDIO_PROJECT_ID || 'missing-project-id'
 const dataset = process.env.SANITY_STUDIO_DATASET || 'development'
@@ -37,6 +37,20 @@ export default defineConfig([
           defineField({name: 'parameters', title: 'Parameters', type: 'string'}),
           defineField({name: 'anchor', title: 'Anchor', type: 'string'}),
         ],
+      }),
+    ],
+  },
+  {
+    ...shared,
+    name: 'anchors',
+    title: 'Link picker (section anchors)',
+    basePath: '/anchors',
+    schema: {types: anchorSchemaTypes},
+    plugins: [
+      structureTool(),
+      linkPicker(routes, {
+        anchors: {documentTypes: ['page']},
+        fields: [defineField({name: 'parameters', title: 'Parameters', type: 'string'})],
       }),
     ],
   },

@@ -21,6 +21,19 @@ export type LinkReferenceValue = {
 }
 
 /**
+ * The stored value of an `anchor` field: a custom fragment in `url` (`#team`), or a weak
+ * reference to a `sectionAnchor` document.
+ *
+ * @public
+ */
+export type AnchorValue = {
+  _key?: string
+  _type?: 'anchor'
+  url?: string | null
+  reference?: LinkReferenceValue | null
+}
+
+/**
  * The stored value of a `link` field.
  *
  * @public
@@ -31,6 +44,24 @@ export type LinkValue = {
   label?: string | null
   url?: string | null
   reference?: LinkReferenceValue | null
+  /** Present when anchors are enabled with `linkPicker(routes, {anchors})`. */
+  anchor?: AnchorValue | null
+}
+
+/**
+ * Enables section anchors: an `anchor` field type, a `sectionAnchor` document type written by
+ * the anchors Function, and an `anchor` field on `link`.
+ *
+ * @public
+ */
+export interface AnchorPluginOptions {
+  /** Document types that have sections. Their sections are listed in the anchor picker. */
+  documentTypes: string[]
+  /**
+   * The array field holding a document's sections, as passed to `syncSectionAnchors`. Clicking a
+   * selected section opens its page at this field. Defaults to `sections`.
+   */
+  field?: string
 }
 
 /**
@@ -47,6 +78,12 @@ export interface LinkFieldPluginOptions {
 
   /** Preview configuration for the `link` type. Defaults to showing the label. */
   preview?: PreviewConfig
+
+  /**
+   * Enables section anchors. Registers the `anchor` field type and the `sectionAnchor` document
+   * type, and adds an `anchor` field to `link` (after `reference`, before custom `fields`).
+   */
+  anchors?: AnchorPluginOptions
 }
 
 /**
@@ -83,6 +120,24 @@ export type LinkInputProps = ObjectInputProps<LinkValue, LinkSchemaType> & {
 }
 
 /**
+ * Props for the anchor field's input component.
+ *
+ * @public
+ */
+export type AnchorInputProps = ObjectInputProps<AnchorValue> & {
+  pluginOptions: AnchorPluginOptions
+}
+
+/**
+ * Schema definition of a field of type `anchor`.
+ *
+ * @public
+ */
+export interface AnchorDefinition extends Omit<ObjectDefinition, 'type' | 'fields' | 'options'> {
+  type: 'anchor'
+}
+
+/**
  * Schema definition of a field of type `link`, used by `defineField` and `defineType` to type
  * the link's `options`.
  *
@@ -97,5 +152,6 @@ declare module 'sanity' {
   // Lets `defineField({type: 'link', options: {routes}})` type-check and autocomplete
   export interface IntrinsicDefinitions {
     link: LinkDefinition
+    anchor: AnchorDefinition
   }
 }

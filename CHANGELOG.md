@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] - 2026-11-23
+
+Section anchors, opt-in. A drop-in upgrade: without `anchors`, the schema and stored values are
+unchanged. See [MIGRATION.md](./MIGRATION.md#upgrading-from-21-to-22).
+
+### Added
+
+- Section anchors, enabled with `linkPicker(routes, {anchors: {documentTypes}})`:
+  - an `anchor` field type, `{url, reference}`, with a picker that browses documents with sections
+    and their sections, searches all sections, and accepts a custom `#fragment`;
+  - an `anchor` field on `link`;
+  - a read-only `sectionAnchor` document type;
+  - `sanity-plugin-link-picker/anchors`, with `syncSectionAnchors` for a Sanity Function that keeps
+    `sectionAnchor` documents in sync with each document's `sections`, and `getSectionAnchors` for
+    rendering matching section ids on the frontend.
+- A selected section shows as a breadcrumb (`Page › Section #slug`), or as `Section #slug` inside
+  a link to the same page.
+- Inside a link that points at a document, the anchor picker lists only that document's sections;
+  changing the link's target clears a section anchor (custom fragments are kept).
+- Clicking a selected section opens its page at that section (`anchors.field`, default `sections`).
+
 ## [2.1.0] - 2026-11-17
 
 Requires Sanity Studio `^6.10.0` and React `^19.2`. Coming from 2.0.0, see
@@ -77,5 +98,6 @@ Requires Sanity Studio 6. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to
 - Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
   `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).
 
+[2.2.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/releases/tag/v2.0.0

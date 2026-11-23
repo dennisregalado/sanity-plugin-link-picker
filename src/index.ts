@@ -2,7 +2,7 @@ import {definePlugin, type PluginOptions} from 'sanity'
 
 import {linkPickerUsEnglishLocaleBundle} from './i18n'
 import type {LinkRouteDefinition, LinksPluginProps} from './routes'
-import {createLinkType} from './schema'
+import {createAnchorType, createLinkType, createSectionAnchorType} from './schema'
 import type {LinkFieldPluginOptions} from './types'
 
 type LinkPickerConfig = {
@@ -13,7 +13,12 @@ type LinkPickerConfig = {
 const linkPickerPlugin = definePlugin<LinkPickerConfig>(({routes, options}) => ({
   name: 'sanity-plugin-link-picker',
   schema: {
-    types: [createLinkType(routes, options)],
+    types: [
+      createLinkType(routes, options),
+      ...(options.anchors
+        ? [createAnchorType(options.anchors), createSectionAnchorType(options.anchors)]
+        : []),
+    ],
   },
   i18n: {
     bundles: [linkPickerUsEnglishLocaleBundle],
@@ -57,6 +62,13 @@ const linkPickerPlugin = definePlugin<LinkPickerConfig>(({routes, options}) => (
  *});
  * ```
  *
+ * @example With section anchors
+ * ```ts
+ * linkPicker([documents('Pages', 'page')], {
+ *   anchors: {documentTypes: ['page']},
+ * })
+ * ```
+ *
  * @example With routes and options
  * ```ts
  * linkPicker(
@@ -78,6 +90,11 @@ export function linkPicker(
   routes: LinkRouteDefinition[] | LinksPluginProps = [],
   options: LinkFieldPluginOptions = {},
 ): PluginOptions {
+  if (options.anchors && options.anchors.documentTypes.length === 0) {
+    throw new Error(
+      '[sanity-plugin-link-picker] `anchors.documentTypes` must list the document types that have sections',
+    )
+  }
   return linkPickerPlugin({routes, options})
 }
 
@@ -95,7 +112,12 @@ export {
   linkPickerUsEnglishLocaleBundle,
   type LinkPickerLocaleResourceKeys,
 } from './i18n'
+export {SECTION_ANCHOR_TYPE} from './anchors'
 export type {
+  AnchorDefinition,
+  AnchorInputProps,
+  AnchorPluginOptions,
+  AnchorValue,
   LinkDefinition,
   LinkFieldOptions,
   LinkFieldPluginOptions,

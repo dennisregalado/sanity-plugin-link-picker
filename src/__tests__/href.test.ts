@@ -1,6 +1,12 @@
 import {describe, expect, it} from 'vitest'
 
-import {getSystemLinkType, isInternalLinkHref, normalizeLinkHref} from '../href'
+import {
+  getSystemLinkType,
+  isAnchorHref,
+  isInternalLinkHref,
+  normalizeAnchorHref,
+  normalizeLinkHref,
+} from '../href'
 
 describe('normalizeLinkHref', () => {
   it.each([
@@ -66,5 +72,33 @@ describe('getSystemLinkType', () => {
     ['tel:+15555550123', 'phone'],
   ])('classifies %j as %j', (href, type) => {
     expect(getSystemLinkType(href)).toBe(type)
+  })
+})
+
+describe('normalizeAnchorHref', () => {
+  it.each([
+    ['team', '#team'],
+    ['#team', '#team'],
+    ['  ##team  ', '#team'],
+    ['Our Team', '#Our-Team'],
+    ['', null],
+    ['#', null],
+    [null, null],
+  ])('%j -> %j', (input, expected) => {
+    expect(normalizeAnchorHref(input)).toBe(expected)
+  })
+})
+
+describe('isAnchorHref', () => {
+  it.each([
+    ['#team', true],
+    ['#a-b_c.1', true],
+    ['team', false],
+    ['#', false],
+    ['#our team', false],
+    ['#a#b', false],
+    ['/page#team', false],
+  ])('%j -> %j', (input, expected) => {
+    expect(isAnchorHref(input)).toBe(expected)
   })
 })

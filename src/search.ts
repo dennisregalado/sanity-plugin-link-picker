@@ -13,6 +13,14 @@ const TOKEN_REGEX = /(?:[^\s"]+|"[^"]*")+/g
 /** The parts of a schema type the search reads. */
 export type SearchSchemaType = Pick<SchemaType, 'name' | 'preview'>
 
+/** How a browsed folder is sorted. */
+export type DocumentBrowseSort = 'updated' | 'order'
+
+const BROWSE_ORDER: Record<DocumentBrowseSort, string> = {
+  updated: 'order(_updatedAt desc)',
+  order: 'order(order asc, _updatedAt desc)',
+}
+
 export interface DocumentSearchRequest {
   query: string
   params: QueryParams
@@ -54,7 +62,7 @@ function getPreviewBoosts(schemaType: SearchSchemaType | undefined): string[] {
 
 /**
  * Builds the GROQ query for the picker's document search (`mode: 'search'`) or for browsing a
- * document folder (`mode: 'browse'`, newest first). Uses only public GROQ, so it is not tied to
+ * document folder (`mode: 'browse'`, newest first unless `sort` says otherwise). Uses only public GROQ, so it is not tied to
  * Studio internals. Run it with the Studio's perspective so `_id` is the published id and drafts
  * or release versions are resolved.
  *
@@ -67,8 +75,10 @@ export function buildDocumentSearchQuery(options: {
   typeNames: string[]
   filter?: string
   filterParams?: QueryParams
+  /** Browse order: newest first (default), or by the documents' `order` field. */
+  sort?: DocumentBrowseSort
 }): DocumentSearchRequest {
-  const {mode, query, schemaTypes, typeNames, filter, filterParams} = options
+  const {mode, query, schemaTypes, typeNames, filter, filterParams, sort = 'updated'} = options
   const constraints = ['_type in $__types']
   if (filter) constraints.push(`(${filter})`)
 
@@ -78,7 +88,7 @@ export function buildDocumentSearchQuery(options: {
 
   if (mode === 'browse') {
     return {
-      query: `*[${constraints.join(' && ')}] | order(_updatedAt desc) ${slice} ${projection}`,
+      query: `*[${constraints.join(' && ')}] | ${BROWSE_ORDER[sort]} ${slice} ${projection}`,
       params,
     }
   }
