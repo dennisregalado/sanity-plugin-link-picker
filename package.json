@@ -1,6 +1,6 @@
 {
   "name": "sanity-plugin-link-picker",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "A small Sanity Studio link field for choosing a label, a URL, or a weak reference.",
   "keywords": [
     "sanity",
