@@ -4,7 +4,10 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.2.0] - 2026-11-23
+
+Section anchors, opt-in. A drop-in upgrade: without `anchors`, the schema and stored values are
+unchanged. See [MIGRATION.md](./MIGRATION.md#upgrading-from-21-to-22).
 
 ### Added
 
@@ -95,5 +98,6 @@ Requires Sanity Studio 6. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to
 - Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
   `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).
 
+[2.2.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/releases/tag/v2.0.0

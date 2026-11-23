@@ -1,8 +1,19 @@
 # Migration guide
 
+- [Upgrading from 2.1 to 2.2](#upgrading-from-21-to-22): drop-in; section anchors are opt-in
 - [Upgrading from 2.0 to 2.1](#upgrading-from-20-to-21): Sanity 6.10 and React 19.2 required
 - [Upgrading from 1.x to 2.x](#upgrading-from-1x-to-2x): Sanity 6 required
 - [Migrating from `sanity-plugin-link` to 1.1](#migrating-from-sanity-plugin-link-to-11): package rename and API changes
+
+## Upgrading from 2.1 to 2.2
+
+2.2 is a drop-in upgrade. Without the new `anchors` option, the `link` schema type, stored values and queries are unchanged.
+
+To use [section anchors](./README.md#section-anchors), pass `anchors: {documentTypes: [...]}` to `linkPicker()` and deploy the anchors Function. This adds an `anchor` field to `link`: if you added your own `anchor` field through `fields`, rename or remove it first, since the two can't share a name.
+
+```sh
+npm install sanity-plugin-link-picker@^2.2
+```
 
 ## Upgrading from 2.0 to 2.1
 
