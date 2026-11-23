@@ -72,3 +72,32 @@ describe('buildSelectionPatches', () => {
     )
   })
 })
+
+describe('buildSelectionPatches with a section anchor', () => {
+  const current = {
+    reference: {_ref: 'page-1'},
+    anchor: {reference: {_type: 'reference', _ref: 'anchor-page-1-a', _weak: true}},
+  }
+  const clearsAnchor = expect.objectContaining({type: 'unset', path: ['anchor', 'reference']})
+
+  it('clears the section when the link points at another page', () => {
+    expect(buildSelectionPatches('link', {_id: 'page-2'}, current)).toContainEqual(clearsAnchor)
+  })
+
+  it('clears the section when the link switches to a URL', () => {
+    expect(buildSelectionPatches('link', {href: '/shop'}, current)).toContainEqual(clearsAnchor)
+  })
+
+  it('keeps the section when the same page is picked again, even as a draft id', () => {
+    expect(buildSelectionPatches('link', {_id: 'drafts.page-1'}, current)).not.toContainEqual(
+      clearsAnchor,
+    )
+  })
+
+  it('keeps a custom fragment', () => {
+    const withFragment = {reference: {_ref: 'page-1'}, anchor: {url: '#team'}}
+    expect(buildSelectionPatches('link', {_id: 'page-2'}, withFragment)).not.toContainEqual(
+      clearsAnchor,
+    )
+  })
+})

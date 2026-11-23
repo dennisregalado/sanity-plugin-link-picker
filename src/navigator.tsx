@@ -609,12 +609,17 @@ export function SearchResults({
   query,
   staticRoutes,
   getTypedResult = getTypedLinkResult,
+  filter,
+  filterParams,
 }: {
   documentTypes: string[]
   query: string
   staticRoutes: StaticLinkRoute[]
   /** The option for using the typed text as-is, shown first. Defaults to a normalized link. */
   getTypedResult?: (query: string) => SearchResultItem | null
+  /** Extra GROQ filter for the document results */
+  filter?: string
+  filterParams?: QueryParams
 }) {
   const perspective = usePerspective()
   const typedLinkResult = useMemo(() => getTypedResult(query), [getTypedResult, query])
@@ -639,7 +644,7 @@ export function SearchResults({
     loadingMore,
     hasNextPage,
     loadMore,
-  } = useDocumentSearch(query, documentTypes)
+  } = useDocumentSearch(query, documentTypes, {filter, filterParams})
   const results = useMemo(
     () => [
       ...(typedLinkResult ? [typedLinkResult] : []),
@@ -828,7 +833,11 @@ function MenuItemRow({item}: {item: MenuItem}) {
   return <PageItem item={item} optionKey={`route:${item.href}`} />
 }
 
-export function Folder({item}: {item: MenuItem}) {
+/**
+ * A document folder. Opened from a menu it starts with a Back row; as the picker's root (when
+ * `title` is set) it starts with that title instead.
+ */
+export function Folder({item, title}: {item: MenuItem; title?: string}) {
   const {popFolder} = useNavigation()
   const backOptionProps = useOptionProps('back')
   const perspective = usePerspective()
@@ -901,6 +910,23 @@ export function Folder({item}: {item: MenuItem}) {
         onEndReached={hasNextPage ? loadMore : undefined}
         pinnedIndices={PINNED_FIRST_ROW}
         renderItem={(row) => {
+          if (row.type === 'back' && title !== undefined) {
+            return (
+              <Box paddingX={2} paddingY={3}>
+                <Flex align="center" justify="space-between" style={{width: '100%'}}>
+                  <Text size={1} weight="medium" textOverflow="ellipsis">
+                    {title}
+                  </Text>
+                  {!loading ? (
+                    <Text muted size={1} weight="medium">
+                      {resultLabel}
+                    </Text>
+                  ) : null}
+                </Flex>
+              </Box>
+            )
+          }
+
           if (row.type === 'back') {
             return (
               <Button

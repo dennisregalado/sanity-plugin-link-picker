@@ -44,7 +44,10 @@ import {
 export type AnchorContextDocument = {
   _id: string
   _type: string
-  /** `current`: the document being edited. `linked`: the page the surrounding link points to. */
+  /**
+   * `current`: the document being edited, listed first. `linked`: the document the surrounding
+   * link points to; the picker only offers its sections.
+   */
   kind: 'current' | 'linked'
 }
 
@@ -124,19 +127,34 @@ function AnchorNavigatorContent({
   documentTypes: string[]
   searchQuery?: string
 }) {
+  const {t} = useTranslation(linkPickerLocaleNamespace)
   const {navigationStack} = useNavigation()
   const currentFolder = navigationStack[navigationStack.length - 1]
   const query = searchQuery?.trim() || ''
+
+  // Inside a link to a document, the anchor can only be one of that document's sections, so the
+  // picker skips choosing a document
+  const linkedFolder = useMemo(
+    () =>
+      contextDocument?.kind === 'linked' && documentTypes.includes(contextDocument._type)
+        ? getSectionsFolder(contextDocument)
+        : null,
+    [contextDocument, documentTypes],
+  )
 
   return (
     <NavigatorFrame>
       {query ? (
         <SearchResults
           documentTypes={ANCHOR_TYPES}
+          filter={linkedFolder?.filter}
+          filterParams={linkedFolder?.filterParams}
           getTypedResult={getTypedAnchorResult}
           query={query}
           staticRoutes={NO_STATIC_ROUTES}
         />
+      ) : linkedFolder ? (
+        <Folder item={linkedFolder} title={t('anchor.linked-sections')} />
       ) : currentFolder ? (
         <Folder item={currentFolder} />
       ) : (
@@ -167,7 +185,9 @@ function DocumentsWithSections({
   })
 
   const pinned =
-    contextDocument && documentTypes.includes(contextDocument._type) ? contextDocument : null
+    contextDocument?.kind === 'current' && documentTypes.includes(contextDocument._type)
+      ? contextDocument
+      : null
   const pinnedId = pinned ? getPublishedDocumentId(pinned._id) : null
 
   const rows = useMemo<DocumentRow[]>(() => {
@@ -178,7 +198,7 @@ function DocumentsWithSections({
       result.push(
         {
           type: 'header',
-          label: t(pinned.kind === 'linked' ? 'anchor.linked-document' : 'anchor.current-document'),
+          label: t('anchor.current-document'),
         },
         {type: 'document', document: {_id: pinnedId ?? pinned._id, _type: pinned._type}},
         {type: 'header', label: t('anchor.documents')},

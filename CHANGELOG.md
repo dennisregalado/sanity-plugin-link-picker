@@ -17,6 +17,8 @@ All notable changes to this project are documented here. The format is based on
     `sectionAnchor` documents in sync with each document's `sections`, and `getSectionAnchors` for
     rendering matching section ids on the frontend.
 - A selected section shows as a breadcrumb (`Page › Section #slug`).
+- Inside a link that points at a document, the anchor picker lists only that document's sections;
+  changing the link's target clears a section anchor (custom fragments are kept).
 
 ## [2.1.0] - 2026-11-17
 

@@ -146,6 +146,8 @@ type PickerFieldProps = {
   readOnly?: boolean
   /** Moves focus to the `url` field after a reference is replaced. */
   onPathFocus: (path: ['url']) => void
+  /** Called after the selected reference is cleared with the Replace button. */
+  onReplaceReference?: () => void
   onSelect: (selection: LinkSelection) => void
   renderNavigator: (props: PickerNavigatorProps) => ReactNode
   normalizeHref: PickerContextValue['normalizeHref']
@@ -164,6 +166,7 @@ export function PickerField({
   canOpenPopover,
   readOnly,
   onPathFocus,
+  onReplaceReference,
   onSelect,
   renderNavigator,
   normalizeHref,
@@ -239,11 +242,12 @@ export function PickerField({
     (inputProps: InputProps) => {
       if (readOnly || inputProps.readOnly) return
       inputProps.onChange(unset())
+      onReplaceReference?.()
       setSearchQuery('')
       if (canOpenPopover) setPopoverOpen(true)
       onPathFocus(['url'])
     },
-    [canOpenPopover, onPathFocus, readOnly, setSearchQuery],
+    [canOpenPopover, onPathFocus, onReplaceReference, readOnly, setSearchQuery],
   )
 
   const handleSelect = useCallback(
@@ -382,9 +386,15 @@ export function LinkInput(props: LinkInputProps) {
   }, [members])
 
   const handleSelect = useCallback(
-    (selected: LinkSelection) => onChange(buildSelectionPatches(schemaType.name, selected)),
-    [onChange, schemaType.name],
+    (selected: LinkSelection) => onChange(buildSelectionPatches(schemaType.name, selected, value)),
+    [onChange, schemaType.name, value],
   )
+
+  // The link no longer points at the page its section anchor is on
+  const hasSectionAnchor = Boolean(value?.anchor?.reference)
+  const handleReplaceReference = useCallback(() => {
+    if (hasSectionAnchor) onChange(unset(['anchor', 'reference']))
+  }, [hasSectionAnchor, onChange])
 
   const getIcon = useCallback(
     (draftValue: string) => {
@@ -425,6 +435,7 @@ export function LinkInput(props: LinkInputProps) {
       canOpenPopover={canOpenPopover}
       readOnly={readOnly}
       onPathFocus={onPathFocus}
+      onReplaceReference={handleReplaceReference}
       onSelect={handleSelect}
       renderNavigator={renderNavigator}
       normalizeHref={normalizeLinkHref}
