@@ -1,4 +1,5 @@
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
+import {DocumentIcon} from '@sanity/icons/Document'
 import {HashIcon} from '@sanity/icons/Hash'
 import {Box, Text} from '@sanity/ui'
 import type React from 'react'
@@ -63,18 +64,39 @@ export function useAnchorSummary(
 
 const MUTED: React.CSSProperties = {color: 'var(--card-muted-fg-color)'}
 
-const SINGLE_LINE: React.CSSProperties = {
-  display: 'block',
+const ROW: React.CSSProperties = {
+  alignItems: 'baseline',
+  display: 'flex',
+  gap: '0.5em',
+  minWidth: 0,
   overflow: 'hidden',
-  textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
 }
 
-const SEPARATOR: React.CSSProperties = {...MUTED, margin: '0 0.25em', verticalAlign: '-0.15em'}
+/** Section and slug: a row of its own that doesn't shrink for the page. */
+const GROUP: React.CSSProperties = {
+  alignItems: 'baseline',
+  display: 'flex',
+  flexShrink: 0,
+  gap: '0.5em',
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+/** A part of the path that truncates on its own. */
+const PART: React.CSSProperties = {minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis'}
+
+const SEPARATOR: React.CSSProperties = {
+  ...MUTED,
+  alignSelf: 'center',
+  display: 'inline-flex',
+  flexShrink: 0,
+  margin: '0 -0.25em',
+}
 
 /**
- * A selected section in one compact row: its section's icon and title, then `#slug`, preceded by
- * `Page ›` outside a link to that page.
+ * A selected section as a one-line path: `[page] Page › Section #slug`, or `[section] Section #slug`
+ * inside a link to that page. Long paths shrink the page first and the section last.
  */
 export function AnchorBreadcrumb({
   summary,
@@ -119,28 +141,42 @@ export function AnchorBreadcrumb({
 
   const hash = summary.slug ? `#${summary.slug}` : undefined
   const onLinkedPage = Boolean(linkedDocumentId && summary.parentId === linkedDocumentId)
+  const sectionTitle = sectionPreview?.title || summary.title || t('anchor.untitled')
 
-  // One compact row, like other references: the section's own icon and title, then `#slug`.
-  // Outside a link to the section's page, the page comes first: `Page › Section #slug`.
+  // One line that never wraps. Full path when it fits; when it doesn't, the page shrinks first
+  // (down to "…"), then the slug, and last the section, the part that was picked.
+  // The icon marks the start of the path: the page's, or the section's inside a link to its page.
   return (
     <Box style={{width: '100%'}}>
       <SanityDefaultPreview
-        icon={sectionType?.icon ?? HashIcon}
+        icon={
+          onLinkedPage ? (sectionType?.icon ?? HashIcon) : (parentSchemaType?.icon ?? DocumentIcon)
+        }
         layout="compact"
-        media={sectionPreview?.media}
+        media={onLinkedPage ? sectionPreview?.media : undefined}
         title={
-          // One line that never wraps: long page or section titles end in an ellipsis
-          <span style={SINGLE_LINE} title={hash}>
+          <span
+            style={ROW}
+            title={[onLinkedPage ? null : parentTitle, sectionTitle, hash]
+              .filter(Boolean)
+              .join(' › ')}
+          >
             {onLinkedPage ? null : (
               <>
-                <span style={MUTED}>{parentTitle || t('anchor.untitled')}</span>
+                <span style={{...PART, ...MUTED, flexShrink: 1, minWidth: '1.5em'}}>
+                  {parentTitle || t('anchor.untitled')}
+                </span>
                 <span style={SEPARATOR}>
                   <ChevronRightIcon />
                 </span>
               </>
             )}
-            {sectionPreview?.title || summary.title || t('anchor.untitled')}
-            {hash ? <span style={{...MUTED, marginLeft: '0.5em'}}>{hash}</span> : null}
+            {/* Section and slug never shrink for the page. The group is capped so the page keeps
+                room for "…", and only then does the slug, and last the section, truncate. */}
+            <span style={{...GROUP, maxWidth: onLinkedPage ? '100%' : 'calc(100% - 3em)'}}>
+              <span style={{...PART, flexShrink: 0, maxWidth: '100%'}}>{sectionTitle}</span>
+              {hash ? <span style={{...PART, ...MUTED, flexShrink: 1}}>{hash}</span> : null}
+            </span>
           </span>
         }
       />

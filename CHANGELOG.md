@@ -8,8 +8,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
-- A selected section with a long page or section title stays on one line and ends in an ellipsis,
-  instead of wrapping out of the field.
+- A selected section with a long page or section title no longer wraps out of the field. It stays
+  on one line, `[page icon] Page › Section #slug`; when space runs out, the page shrinks first
+  (down to "…"), then the slug, and the section last.
 
 ## [2.2.1] - 2026-11-23
 
