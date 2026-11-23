@@ -1,3 +1,5 @@
+import {BasketIcon} from '@sanity/icons/Basket'
+import {HomeIcon} from '@sanity/icons/Home'
 import {defineConfig, defineField} from 'sanity'
 import {documents, group, linkPicker, route} from 'sanity-plugin-link-picker'
 import {structureTool} from 'sanity/structure'
@@ -8,8 +10,12 @@ const projectId = process.env.SANITY_STUDIO_PROJECT_ID || 'missing-project-id'
 const dataset = process.env.SANITY_STUDIO_DATASET || 'development'
 
 const routes = [
-  route('Home', '/'),
-  group('Shop', [route('All products', '/shop'), route('Gift cards', '/gift-cards')]),
+  route('Home', '/', {icon: HomeIcon}),
+  group('Shop', [
+    route('All products', '/shop', {icon: BasketIcon}),
+    // Emoji icons work too
+    route('Gift cards', '/gift-cards', {icon: '🎁'}),
+  ]),
   documents('Pages', 'page'),
   documents('Products', 'product'),
   documents('Collections', 'collection'),

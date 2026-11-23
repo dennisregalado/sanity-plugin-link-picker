@@ -1,6 +1,8 @@
 import type {JSXElementConstructor, ReactNode} from 'react'
 import type {QueryParams} from 'sanity'
 
+import {normalizeLinkHref} from './href'
+
 /**
  * An icon for a route, group or document folder: a component (such as one from `@sanity/icons`),
  * a React element, or a string such as an emoji.
@@ -245,8 +247,15 @@ function getLinkConfigWarnings(routes: LinkRouteDefinition[], path: string[] = [
     const label = route.title
     const nextPath = [...path, label]
 
-    if (route.type === 'route' && !route.path.startsWith('/')) {
-      warnings.push(`${nextPath.join(' > ')} path should start with "/".`)
+    // Paths start with "/"; full URLs and mailto:/tel: links are fine as they are
+    if (
+      route.type === 'route' &&
+      !route.path.startsWith('/') &&
+      normalizeLinkHref(route.path) !== route.path
+    ) {
+      warnings.push(
+        `${nextPath.join(' > ')} path should start with "/", or be a full URL or a mailto:/tel: link.`,
+      )
     }
 
     if (route.type === 'group') {

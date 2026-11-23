@@ -52,9 +52,6 @@ export const DefaultIcon = () => <Text>✨</Text>
 
 export const NAVIGATOR_MAX_HEIGHT = 390
 
-// @sanity/icons are drawn on a 25px grid with padding; 21px matches the old 16px glyphs
-const ICON_SIZE = 21
-
 const VIRTUAL_LIST_OVERSCAN = 5
 
 const VIRTUAL_ROW_ESTIMATE_SIZE = 52
@@ -65,7 +62,7 @@ export const API_VERSION = '2025-02-19'
 
 const NO_ROUTES: LinkRouteDefinition[] = []
 
-export type RenderLinkIcon = () => React.ReactNode
+export type RenderLinkIcon = React.ElementType
 
 const defaultLinkTypeIcons: Record<SystemLinkType, typeof LinkIcon> = {
   internal: LinkIcon,
@@ -96,7 +93,7 @@ export type SearchResultItem =
       label?: string
       title?: string
       href: string
-      icon?: () => React.ReactNode
+      icon?: React.ElementType
     }
 
 export type SearchDocument = {
@@ -157,7 +154,7 @@ export type MenuItem = {
   label?: string // Display name in UI
   href?: string // Navigation URL for 'page' type items
   type?: string // 'page' | 'folder' | 'group'
-  icon?: () => React.ReactNode // Icon component (emoji-based)
+  icon?: React.ElementType // Native icon component, or a wrapper for emoji/elements
   children?: MenuItem[] // Nested items for 'group' type
   omitLabelOnSelect?: boolean
   documentType?: string
@@ -169,62 +166,43 @@ export type MenuItem = {
   projection?: string
 }
 
-function NormalizedLinkIcon({
-  children,
-  shift = false,
-}: {
-  children: React.ReactNode
-  shift?: boolean
-}) {
+/** Emoji and element icons, sized like the native icons beside them. */
+function NormalizedLinkIcon({children}: {children: React.ReactNode}) {
   return (
     <span
       style={{
         alignItems: 'center',
         display: 'inline-flex',
-        height: 20,
+        height: '1em',
         justifyContent: 'center',
-        lineHeight: 0,
-        transform: shift ? 'translate(-3px, -1px)' : undefined,
-        verticalAlign: 'middle',
-        width: 20,
+        lineHeight: 1,
+        width: '1em',
       }}
     >
-      <span
-        style={{
-          alignItems: 'center',
-          display: 'inline-flex',
-          fontSize: 16,
-          justifyContent: 'center',
-          lineHeight: 1,
-        }}
-      >
-        {children}
-      </span>
+      {children}
     </span>
   )
 }
 
-export function normalizeLinkIcon(
-  icon: LinkIconInput | undefined,
-  options?: {shift?: boolean},
-): RenderLinkIcon | undefined {
-  if (!icon) {
-    return undefined
-  }
+const wrappedIcons = new Map<unknown, React.ElementType>()
 
-  if (typeof icon === 'function' || isReactComponentObject(icon)) {
-    return () => (
-      <NormalizedLinkIcon shift={options?.shift}>
-        {React.createElement(icon as React.ElementType)}
-      </NormalizedLinkIcon>
-    )
-  }
+/**
+ * A route's icon as a component. Components (like `@sanity/icons`) are returned as they are, so
+ * Studio previews and Sanity UI inputs render them at their native size and alignment. Emoji and
+ * elements get a small wrapper component, cached so it keeps its identity across renders.
+ */
+export function normalizeLinkIcon(icon: LinkIconInput | undefined): React.ElementType | undefined {
+  if (!icon) return undefined
+  if (typeof icon === 'function' || isReactComponentObject(icon)) return icon as React.ElementType
 
-  return () => (
-    <NormalizedLinkIcon shift={options?.shift}>
-      {typeof icon === 'string' ? <Text>{icon}</Text> : (icon as React.ReactNode)}
-    </NormalizedLinkIcon>
-  )
+  const cached = wrappedIcons.get(icon)
+  if (cached) return cached
+  const node = typeof icon === 'string' ? <Text>{icon}</Text> : (icon as React.ReactNode)
+  function LinkIcon() {
+    return <NormalizedLinkIcon>{node}</NormalizedLinkIcon>
+  }
+  wrappedIcons.set(icon, LinkIcon)
+  return LinkIcon
 }
 
 function isReactComponentObject(icon: unknown): icon is React.ElementType {
@@ -233,14 +211,9 @@ function isReactComponentObject(icon: unknown): icon is React.ElementType {
   )
 }
 
-export function getSystemLinkIcon(href: string, options?: {shift?: boolean}): RenderLinkIcon {
-  const Icon = defaultLinkTypeIcons[getSystemLinkType(href)]
-
-  return () => (
-    <NormalizedLinkIcon shift={options?.shift}>
-      <Icon style={{fontSize: ICON_SIZE}} />
-    </NormalizedLinkIcon>
-  )
+/** The native `@sanity/icons` icon for a link's type: link, globe, envelope or phone. */
+export function getSystemLinkIcon(href: string): React.ElementType {
+  return defaultLinkTypeIcons[getSystemLinkType(href)]
 }
 
 function getTypedLinkResult(query: string): SearchResultItem | null {
@@ -835,12 +808,7 @@ function MenuItemRow({item}: {item: MenuItem}) {
       >
         <Flex style={{width: '100%'}} align="center" justify="space-between" gap={3}>
           <Box flex={1}>
-            <SanityDefaultPreview
-              layout="compact"
-              title={item.label}
-              media={item.icon}
-              icon={item.icon ? undefined : false}
-            />
+            <SanityDefaultPreview layout="compact" title={item.label} icon={item.icon ?? false} />
           </Box>
           <ChevronRightIcon />
         </Flex>
@@ -1141,12 +1109,7 @@ function PageItem({item, optionKey}: {item: MenuItem; optionKey: string}) {
       width="fill"
     >
       <Box style={{width: '100%'}}>
-        <SanityDefaultPreview
-          layout="compact"
-          title={item.label}
-          media={item.icon}
-          icon={item.icon ? undefined : false}
-        />
+        <SanityDefaultPreview layout="compact" title={item.label} icon={item.icon ?? false} />
       </Box>
     </Button>
   )
@@ -1183,7 +1146,7 @@ function DocumentItem({
   optionKey,
   perspectiveStack,
 }: {
-  icon?: () => React.ReactNode
+  icon?: React.ElementType
   optionKey: string
   item: {
     title?: string
@@ -1242,12 +1205,7 @@ function DocumentItem({
         />
       ) : (
         <Box style={{width: '100%'}}>
-          <SanityDefaultPreview
-            layout="compact"
-            title={label}
-            media={fallbackMedia}
-            icon={fallbackMedia ? undefined : false}
-          />
+          <SanityDefaultPreview layout="compact" title={label} icon={fallbackMedia ?? false} />
         </Box>
       )}
     </Button>

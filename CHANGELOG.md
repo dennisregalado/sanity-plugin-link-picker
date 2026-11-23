@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Valid email and phone links show as a card outside editing, like preset routes:
+  `[envelope] hello@example.com Email`, `[phone] +15555550123 Phone`. Clicking it edits the link;
+  a preset route with the same URL still wins.
+
+### Changed
+
+- Link icons render at Studio's native size and alignment: `@sanity/icons` (and any component
+  icon) are passed straight to previews and the URL input instead of through a fixed-size
+  wrapper. Emoji and element icons are wrapped to match.
+- `defineLinkMenu()` no longer warns about route paths that are full URLs or `mailto:`/`tel:`
+  links, only about other paths that don't start with `/`.
+
 ## [2.3.0] - 2026-11-23
 
 ### Added
