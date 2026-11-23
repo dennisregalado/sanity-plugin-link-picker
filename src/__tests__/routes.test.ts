@@ -82,4 +82,15 @@ describe('defineLinkMenu', () => {
     )
     warn.mockRestore()
   })
+
+  it('accepts full URLs and mailto:/tel: links as route paths', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    defineLinkMenu([
+      route('Email us', 'mailto:hello@example.com'),
+      route('Call us', 'tel:+15555550123'),
+      route('Docs', 'https://example.com/docs'),
+    ])
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
 })

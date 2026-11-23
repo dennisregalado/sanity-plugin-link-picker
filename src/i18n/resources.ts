@@ -18,8 +18,12 @@ const linkPickerResources = {
   'reference.replace': 'Replace reference',
   /** Accessible label for a URL shown as its preset route; clicking it edits the URL */
   'link.edit': 'Edit link',
-  /** Tooltip and accessible label for the button that clears a preset route link */
+  /** Tooltip and accessible label for the button that clears a preset, email or phone link */
   'link.replace': 'Replace link',
+  /** Shown after the address of an email link displayed as a card */
+  'link.email': 'Email',
+  /** Shown after the number of a phone link displayed as a card */
+  'link.phone': 'Phone',
   /** Header above the document an anchor field is on */
   'anchor.current-document': 'This document',
   /** Header above the sections of the document an anchor's link points to */

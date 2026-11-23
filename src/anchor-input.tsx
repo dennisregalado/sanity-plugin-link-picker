@@ -18,11 +18,6 @@ import type {AnchorInputProps} from './types'
 
 const BUILT_IN_FIELD_NAMES = new Set(['url', 'reference'])
 
-// A fragment already starts with `#`, so the input shows no icon
-function getAnchorIcon() {
-  return undefined
-}
-
 function isBrowseValue(value: string) {
   const trimmed = value.trim()
   return !trimmed || isAnchorHref(trimmed)
@@ -89,7 +84,6 @@ export function AnchorInput(props: AnchorInputProps) {
       onSelect={handleSelect}
       renderNavigator={renderNavigator}
       normalizeHref={normalizeAnchorHref}
-      getIcon={getAnchorIcon}
       isBrowseValue={isBrowseValue}
       linkedDocumentId={contextDocument?.kind === 'linked' ? contextDocument._id : undefined}
       sectionsField={props.pluginOptions.field}

@@ -6,6 +6,7 @@ import {Tooltip} from '@sanity/ui/tooltip'
 import {
   type ComponentType,
   createContext,
+  type ElementType,
   type ReactNode,
   type FocusEvent,
   type ChangeEvent,
@@ -37,7 +38,7 @@ import {type RouterPanes, usePaneRouter} from 'sanity/structure'
 
 import {AnchorBreadcrumb, useAnchorSummary} from './anchor-breadcrumb'
 import {DEFAULT_SECTIONS_FIELD, SECTION_ANCHOR_TYPE} from './anchors'
-import {normalizeLinkHref} from './href'
+import {getSystemLinkType, normalizeLinkHref} from './href'
 import {linkPickerLocaleNamespace} from './i18n'
 import {
   type BaseNavigatorProps,
@@ -109,7 +110,9 @@ export function withInputComponent(
 /** A preset route a link value matches: `route('Home', '/')`. */
 type LinkPreset = {
   title: string
-  icon?: () => ReactNode
+  /** Muted text after the title. Defaults to the URL. */
+  detail?: string
+  icon?: ElementType
 }
 
 type PickerContextValue = {
@@ -123,8 +126,6 @@ type PickerContextValue = {
   replaceReference: (inputProps: InputProps) => void
   /** Turns typed text into the stored `url`, or `null` when it isn't a valid value. */
   normalizeHref: (value: string) => string | null
-  /** Icon shown in the URL input for the typed text. */
-  getIcon: (value: string) => ReactNode
   /** Whether focusing the input with this text should browse instead of searching for it. */
   isBrowseValue: (value: string) => boolean
   /** The document the surrounding link points to; a selected section on it omits the page. */
@@ -165,7 +166,6 @@ type PickerFieldProps = {
   onSelect: (selection: LinkSelection) => void
   renderNavigator: (props: PickerNavigatorProps) => ReactNode
   normalizeHref: PickerContextValue['normalizeHref']
-  getIcon: PickerContextValue['getIcon']
   isBrowseValue: PickerContextValue['isBrowseValue']
   /** The document the surrounding link points to, if any. */
   linkedDocumentId?: string
@@ -189,7 +189,6 @@ export function PickerField({
   onSelect,
   renderNavigator,
   normalizeHref,
-  getIcon,
   isBrowseValue,
   linkedDocumentId,
   sectionsField,
@@ -297,7 +296,6 @@ export function PickerField({
       setSearchQuery,
       replaceReference,
       normalizeHref,
-      getIcon,
       isBrowseValue,
       linkedDocumentId,
       sectionsField,
@@ -313,7 +311,6 @@ export function PickerField({
       setSearchQuery,
       canOpenPopover,
       closePopover,
-      getIcon,
       getPreset,
       isBrowseValue,
       linkedDocumentId,
@@ -366,6 +363,7 @@ export function PickerField({
 
 export function LinkInput(props: LinkInputProps) {
   const {members, onChange, onPathFocus, readOnly, renderDefault, schemaType, value} = props
+  const {t} = useTranslation(linkPickerLocaleNamespace)
 
   const routeConfig = schemaType.options?.routes || props.pluginOptions?.routes
   const configuredRoutes = useMemo(() => resolveRoutes(routeConfig), [routeConfig])
@@ -424,37 +422,29 @@ export function LinkInput(props: LinkInputProps) {
     if (hasSectionAnchor) onChange(unset(['anchor', 'reference']))
   }, [hasSectionAnchor, onChange])
 
-  const getIcon = useCallback(
-    (draftValue: string) => {
-      const normalizedHref = normalizeLinkHref(draftValue)
-      const matchedRoute = normalizedHref
-        ? flattenedRoutes.find((item) => item.path === normalizedHref)
-        : null
-
-      if (matchedRoute?.icon) {
-        return normalizeLinkIcon(matchedRoute.icon, {shift: true})?.()
-      }
-
-      if (normalizedHref) {
-        return getSystemLinkIcon(normalizedHref, {shift: true})()
-      }
-
-      return undefined
-    },
-    [flattenedRoutes],
-  )
-
-  // A saved value that is exactly a preset route's path shows as that route, like a reference
+  // Shown as a card instead of the text input when not editing: a preset route's path shows as
+  // that route; any other valid email or phone link shows its address or number
   const getPreset = useCallback(
     (href: string): LinkPreset | null => {
-      const route = href ? flattenedRoutes.find((item) => item.path === href) : undefined
-      if (!route) return null
-      return {
-        title: route.title,
-        icon: normalizeLinkIcon(route.icon) ?? getSystemLinkIcon(route.path),
+      if (!href) return null
+      const route = flattenedRoutes.find((item) => item.path === href)
+      if (route) {
+        return {
+          title: route.title,
+          icon: normalizeLinkIcon(route.icon) ?? getSystemLinkIcon(route.path),
+        }
       }
+      const type = getSystemLinkType(href)
+      if ((type === 'email' || type === 'phone') && normalizeLinkHref(href) === href) {
+        return {
+          title: getContactText(href),
+          detail: t(type === 'email' ? 'link.email' : 'link.phone'),
+          icon: getSystemLinkIcon(href),
+        }
+      }
+      return null
     },
-    [flattenedRoutes],
+    [flattenedRoutes, t],
   )
 
   const isBrowseValue = useCallback(
@@ -480,7 +470,6 @@ export function LinkInput(props: LinkInputProps) {
       onSelect={handleSelect}
       renderNavigator={renderNavigator}
       normalizeHref={normalizeLinkHref}
-      getIcon={getIcon}
       getPreset={getPreset}
       isBrowseValue={isBrowseValue}
     >
@@ -783,7 +772,6 @@ function URLInput(props: StringInputProps) {
     'aria-expanded': linkContext.canOpenPopover ? pickerOpen : undefined,
     'aria-controls': pickerOpen ? linkContext.popoverId : undefined,
     'aria-activedescendant': pickerOpen ? linkContext.activeOptionId : undefined,
-    'icon': linkContext.getIcon(draftValue),
     'value': draftValue,
     'clearButton': draftValue && !readOnly ? {icon: CloseIcon} : false,
     'onBlur': (event: FocusEvent<HTMLInputElement>) => {
@@ -871,6 +859,16 @@ function URLInput(props: StringInputProps) {
   return renderDefault({...props, elementProps: urlElementProps})
 }
 
+/** `mailto:hello@example.com?subject=Hi` → `hello@example.com?subject=Hi`; `tel:+1555` → `+1555`. */
+function getContactText(href: string): string {
+  const text = href.replace(/^(mailto|tel):/i, '')
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    return text
+  }
+}
+
 const MUTED_TEXT: React.CSSProperties = {color: 'var(--card-muted-fg-color)', marginLeft: '0.5em'}
 
 const SINGLE_LINE: React.CSSProperties = {
@@ -914,13 +912,12 @@ function PresetLinkPreview({
           >
             <Box style={{width: '100%'}}>
               <SanityDefaultPreview
-                icon={preset.icon ? undefined : false}
+                icon={preset.icon ?? false}
                 layout="compact"
-                media={preset.icon}
                 title={
                   <span style={SINGLE_LINE} title={href}>
                     {preset.title}
-                    <span style={MUTED_TEXT}>{href}</span>
+                    <span style={MUTED_TEXT}>{preset.detail ?? href}</span>
                   </span>
                 }
               />

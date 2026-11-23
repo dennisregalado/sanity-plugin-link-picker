@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] - 2026-11-23
+
+### Added
+
+- Valid email and phone links show as a card outside editing, like preset routes:
+  `[envelope] hello@example.com Email`, `[phone] +15555550123 Phone`. Clicking it edits the link;
+  a preset route with the same URL still wins.
+
+### Changed
+
+- Link icons render at Studio's native size and alignment: `@sanity/icons` (and any component
+  icon) are passed straight to previews instead of through a fixed-size wrapper. Emoji and element
+  icons are wrapped to match.
+- The URL text input no longer shows a link-type icon while typing; icons stay on cards and picker
+  options.
+- `defineLinkMenu()` no longer warns about route paths that are full URLs or `mailto:`/`tel:`
+  links, only about other paths that don't start with `/`.
+
 ## [2.3.0] - 2026-11-23
 
 ### Added
@@ -126,6 +144,7 @@ Requires Sanity Studio 6. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to
 - Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
   `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).
 
+[2.4.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.1.0...v2.2.0
