@@ -63,6 +63,13 @@ export function useAnchorSummary(
 
 const MUTED: React.CSSProperties = {color: 'var(--card-muted-fg-color)'}
 
+const SINGLE_LINE: React.CSSProperties = {
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
 const SEPARATOR: React.CSSProperties = {...MUTED, margin: '0 0.25em', verticalAlign: '-0.15em'}
 
 /**
@@ -122,7 +129,8 @@ export function AnchorBreadcrumb({
         layout="compact"
         media={sectionPreview?.media}
         title={
-          <span title={hash}>
+          // One line that never wraps: long page or section titles end in an ellipsis
+          <span style={SINGLE_LINE} title={hash}>
             {onLinkedPage ? null : (
               <>
                 <span style={MUTED}>{parentTitle || t('anchor.untitled')}</span>

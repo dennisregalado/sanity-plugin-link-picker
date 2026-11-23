@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- A selected section with a long page or section title stays on one line and ends in an ellipsis,
+  instead of wrapping out of the field.
+
 ## [2.2.1] - 2026-11-23
 
 ### Changed
