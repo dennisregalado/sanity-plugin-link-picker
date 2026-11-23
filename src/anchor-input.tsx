@@ -1,4 +1,3 @@
-import {HashIcon} from '@sanity/icons/Hash'
 import {Box, Stack} from '@sanity/ui'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import {type Path, useDocumentPreviewStore, useFormValue, usePerspective} from 'sanity'
@@ -14,16 +13,14 @@ import {
   URLInputComponent,
   withInputComponent,
 } from './input'
-import {normalizeLinkIcon} from './navigator'
 import {buildSelectionPatches, type LinkSelection} from './patches'
 import type {AnchorInputProps} from './types'
 
 const BUILT_IN_FIELD_NAMES = new Set(['url', 'reference'])
 
-const renderAnchorIcon = normalizeLinkIcon(HashIcon, {shift: true})
-
-function getAnchorIcon(value: string) {
-  return normalizeAnchorHref(value) ? renderAnchorIcon?.() : undefined
+// A fragment already starts with `#`, so the input shows no icon
+function getAnchorIcon() {
+  return undefined
 }
 
 function isBrowseValue(value: string) {

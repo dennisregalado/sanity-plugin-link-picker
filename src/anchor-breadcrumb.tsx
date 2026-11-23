@@ -1,6 +1,5 @@
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
 import {DocumentIcon} from '@sanity/icons/Document'
-import {HashIcon} from '@sanity/icons/Hash'
 import {Box, Text} from '@sanity/ui'
 import type React from 'react'
 import {useEffect, useState} from 'react'
@@ -100,11 +99,7 @@ export function AnchorBreadcrumb({
   if (linkedDocumentId && summary.parentId === linkedDocumentId) {
     return (
       <Box style={{width: '100%'}}>
-        <SanityDefaultPreview
-          icon={HashIcon}
-          layout="compact"
-          title={<span>{sectionLabel}</span>}
-        />
+        <SanityDefaultPreview icon={false} layout="compact" title={<span>{sectionLabel}</span>} />
       </Box>
     )
   }

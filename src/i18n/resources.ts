@@ -22,6 +22,8 @@ const linkPickerResources = {
   'anchor.linked-sections': 'Sections on the linked page',
   /** Header above the other documents that have sections */
   'anchor.documents': 'Documents with sections',
+  /** Picker option that stores the typed text as a custom fragment, e.g. `Use "#team"` */
+  'anchor.use-fragment': 'Use "{{fragment}}"',
   /** Shown when a selected section's anchor document no longer exists */
   'anchor.missing': 'Section not found',
   /** Fallback for a document or section without a title */

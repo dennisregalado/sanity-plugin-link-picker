@@ -5,7 +5,6 @@
  */
 
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
-import {HashIcon} from '@sanity/icons/Hash'
 import {Box, Button, Flex, Text} from '@sanity/ui'
 import {useCallback, useMemo} from 'react'
 import {
@@ -66,17 +65,15 @@ const NO_ACTIVE_OPTION = null
 // Only list documents the anchors Function has written sections for
 const HAS_ANCHORS_FILTER = `_id in *[_type == "${SECTION_ANCHOR_TYPE}"].parent._ref`
 
-const ICON_SIZE = 21
-
-function AnchorIcon() {
-  return <HashIcon style={{fontSize: ICON_SIZE}} />
-}
-
-/** The custom `#fragment` option for typed text. */
-export function getTypedAnchorResult(query: string): SearchResultItem | null {
+/** The option for using the typed text as a custom fragment: `Use "#team"`, without an icon. */
+export function getTypedAnchorResult(
+  query: string,
+  formatLabel: (fragment: string) => string,
+): SearchResultItem | null {
   const href = normalizeAnchorHref(query)
   if (!href) return null
-  return {type: 'link', href, icon: AnchorIcon, label: href, title: href}
+  const label = formatLabel(href)
+  return {type: 'link', href, label, title: label}
 }
 
 /** A folder listing one document's sections, in page order. */
@@ -131,6 +128,11 @@ function AnchorNavigatorContent({
   const {navigationStack} = useNavigation()
   const currentFolder = navigationStack[navigationStack.length - 1]
   const query = searchQuery?.trim() || ''
+  const getTypedResult = useCallback(
+    (text: string) =>
+      getTypedAnchorResult(text, (fragment) => t('anchor.use-fragment', {fragment})),
+    [t],
+  )
 
   // Inside a link to a document, the anchor can only be one of that document's sections, so the
   // picker skips choosing a document
@@ -149,7 +151,7 @@ function AnchorNavigatorContent({
           documentTypes={ANCHOR_TYPES}
           filter={linkedFolder?.filter}
           filterParams={linkedFolder?.filterParams}
-          getTypedResult={getTypedAnchorResult}
+          getTypedResult={getTypedResult}
           query={query}
           staticRoutes={NO_STATIC_ROUTES}
         />
