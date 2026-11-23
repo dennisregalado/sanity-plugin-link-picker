@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.3.0] - 2026-11-23
+
+### Added
+
+- A link URL that exactly matches a preset route (`route('Home', '/')`) shows as that route
+  outside editing: a card with the route's icon, title and path, like a selected reference.
+  Clicking it brings back the text input, focused, with the picker open; the pencil clears the URL
+  and opens the picker. Other URLs keep the text input.
+
+### Fixed
+
+- A selected section with a long page or section title no longer wraps out of the field. It stays
+  on one line, `[page icon] Page › Section #slug`; when space runs out, the page shrinks first
+  (down to "…"), then the slug, and the section last.
+
 ## [2.2.1] - 2026-11-23
 
 ### Changed
@@ -111,6 +126,7 @@ Requires Sanity Studio 6. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to
 - Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
   `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).
 
+[2.3.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.0.0...v2.1.0
