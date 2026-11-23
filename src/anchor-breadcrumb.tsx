@@ -1,5 +1,5 @@
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
-import {DocumentIcon} from '@sanity/icons/Document'
+import {HashIcon} from '@sanity/icons/Hash'
 import {Box, Text} from '@sanity/ui'
 import type React from 'react'
 import {useEffect, useState} from 'react'
@@ -7,6 +7,7 @@ import {SanityDefaultPreview, useClient, usePerspective, useSchema, useTranslati
 
 import {linkPickerLocaleNamespace} from './i18n'
 import {API_VERSION, usePreviewTitle} from './navigator'
+import {getSectionFields, useSectionPreview} from './section-preview'
 
 export type AnchorSummary = {
   sectionKey?: string
@@ -14,21 +15,29 @@ export type AnchorSummary = {
   slug?: string
   parentId?: string
   parentType?: string
+  /** The section object on its page */
+  section?: unknown
+  sectionsField?: string
 }
 
-const ANCHOR_SUMMARY_QUERY = `*[_id == $id][0]{
-  title,
-  "slug": slug.current,
-  sectionKey,
-  "parentId": parent._ref,
-  "parentType": parent->_type
-}`
+function getAnchorSummaryQuery(sectionsField: string | undefined): string {
+  return `*[_id == $id][0]{
+    title,
+    "slug": slug.current,
+    sectionKey,
+    "parentId": parent._ref,
+    ${getSectionFields(sectionsField)}
+  }`
+}
 
 /**
  * The anchor document's title, slug, section key and parent, in the current perspective.
  * `undefined` while loading (or without an id), `null` when the anchor doesn't exist.
  */
-export function useAnchorSummary(anchorId: string | undefined): AnchorSummary | null | undefined {
+export function useAnchorSummary(
+  anchorId: string | undefined,
+  sectionsField?: string,
+): AnchorSummary | null | undefined {
   const client = useClient({apiVersion: API_VERSION})
   const {perspectiveStack} = usePerspective()
   const [resolved, setResolved] = useState<{id: string; summary: AnchorSummary | null} | null>(null)
@@ -37,7 +46,7 @@ export function useAnchorSummary(anchorId: string | undefined): AnchorSummary | 
     if (!anchorId) return undefined
     const subscription = client.observable
       .fetch<AnchorSummary | null>(
-        ANCHOR_SUMMARY_QUERY,
+        getAnchorSummaryQuery(sectionsField),
         {id: anchorId},
         {perspective: perspectiveStack, tag: 'link-picker.anchor'},
       )
@@ -46,7 +55,7 @@ export function useAnchorSummary(anchorId: string | undefined): AnchorSummary | 
         error: () => setResolved({id: anchorId, summary: null}),
       })
     return () => subscription.unsubscribe()
-  }, [anchorId, client, perspectiveStack])
+  }, [anchorId, client, perspectiveStack, sectionsField])
 
   // undefined while loading, null when the anchor doesn't exist
   return anchorId && resolved?.id === anchorId ? resolved.summary : undefined
@@ -57,7 +66,8 @@ const MUTED: React.CSSProperties = {color: 'var(--card-muted-fg-color)'}
 const SEPARATOR: React.CSSProperties = {...MUTED, margin: '0 0.25em', verticalAlign: '-0.15em'}
 
 /**
- * A selected section shown as a breadcrumb: `[page icon] Page › Section #slug`.
+ * A selected section in one compact row: its section's icon and title, then `#slug`, preceded by
+ * `Page ›` outside a link to that page.
  */
 export function AnchorBreadcrumb({
   summary,
@@ -76,6 +86,11 @@ export function AnchorBreadcrumb({
   const {perspectiveStack} = usePerspective()
   const parentSchemaType = summary?.parentType ? schema.get(summary.parentType) : undefined
   const parentTitle = usePreviewTitle(summary?.parentId, parentSchemaType, perspectiveStack)
+  const {schemaType: sectionType, preview: sectionPreview} = useSectionPreview({
+    section: summary?.section,
+    parentType: summary?.parentType,
+    sectionsField: summary?.sectionsField,
+  })
 
   if (summary === undefined) {
     return (
@@ -95,35 +110,29 @@ export function AnchorBreadcrumb({
     )
   }
 
-  const sectionLabel = (
-    <>
-      {summary.title || t('anchor.untitled')}
-      {summary.slug ? <span style={{...MUTED, marginLeft: '0.5em'}}>#{summary.slug}</span> : null}
-    </>
-  )
+  const hash = summary.slug ? `#${summary.slug}` : undefined
+  const onLinkedPage = Boolean(linkedDocumentId && summary.parentId === linkedDocumentId)
 
-  if (linkedDocumentId && summary.parentId === linkedDocumentId) {
-    return (
-      <Box style={{width: '100%'}}>
-        <SanityDefaultPreview icon={false} layout="compact" title={<span>{sectionLabel}</span>} />
-      </Box>
-    )
-  }
-
-  // Rendered as Studio's compact preview so it lines up with other references; the breadcrumb
-  // is one line of inline text that truncates as a whole
+  // One compact row, like other references: the section's own icon and title, then `#slug`.
+  // Outside a link to the section's page, the page comes first: `Page › Section #slug`.
   return (
     <Box style={{width: '100%'}}>
       <SanityDefaultPreview
+        icon={sectionType?.icon ?? HashIcon}
         layout="compact"
-        icon={parentSchemaType?.icon ?? DocumentIcon}
+        media={sectionPreview?.media}
         title={
-          <span title={summary.slug ? `#${summary.slug}` : undefined}>
-            <span style={MUTED}>{parentTitle || t('anchor.untitled')}</span>
-            <span style={SEPARATOR}>
-              <ChevronRightIcon />
-            </span>
-            {sectionLabel}
+          <span title={hash}>
+            {onLinkedPage ? null : (
+              <>
+                <span style={MUTED}>{parentTitle || t('anchor.untitled')}</span>
+                <span style={SEPARATOR}>
+                  <ChevronRightIcon />
+                </span>
+              </>
+            )}
+            {sectionPreview?.title || summary.title || t('anchor.untitled')}
+            {hash ? <span style={{...MUTED, marginLeft: '0.5em'}}>{hash}</span> : null}
           </span>
         }
       />

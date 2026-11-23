@@ -1,3 +1,5 @@
+import {ImageIcon} from '@sanity/icons/Image'
+import {TextIcon} from '@sanity/icons/Text'
 import {defineArrayMember, defineField, defineType} from 'sanity'
 import {documents, route} from 'sanity-plugin-link-picker'
 
@@ -19,12 +21,24 @@ const linkable = ['page', 'product', 'collection'].map((name) =>
                 defineArrayMember({
                   name: 'hero',
                   type: 'object',
+                  title: 'Image hero',
+                  icon: ImageIcon,
                   fields: [defineField({name: 'heading', type: 'string'})],
+                  preview: {
+                    select: {heading: 'heading'},
+                    prepare: ({heading}) => ({title: 'Image hero', subtitle: heading}),
+                  },
                 }),
                 defineArrayMember({
                   name: 'textSection',
                   type: 'object',
+                  title: 'Text section',
+                  icon: TextIcon,
                   fields: [defineField({name: 'title', type: 'string'})],
+                  preview: {
+                    select: {title: 'title'},
+                    prepare: ({title}) => ({title: 'Text section', subtitle: title}),
+                  },
                 }),
               ],
             }),

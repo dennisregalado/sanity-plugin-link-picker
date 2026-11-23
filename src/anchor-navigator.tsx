@@ -38,6 +38,7 @@ import {
   useNavigation,
   useOptionProps,
 } from './navigator'
+import {getSectionAnchorProjection} from './section-preview'
 
 /** The document whose sections are listed first. */
 export type AnchorContextDocument = {
@@ -53,6 +54,8 @@ export type AnchorContextDocument = {
 type AnchorNavigatorProps = BaseNavigatorProps & {
   /** Document types that have sections. */
   documentTypes: string[]
+  /** The sections array field, for looking up each section's type (its icon) */
+  sectionsField?: string
   contextDocument?: AnchorContextDocument | null
 }
 
@@ -77,7 +80,10 @@ export function getTypedAnchorResult(
 }
 
 /** A folder listing one document's sections, in page order. */
-export function getSectionsFolder(document: {_id: string; label?: string}): MenuItem {
+export function getSectionsFolder(
+  document: {_id: string; label?: string},
+  sectionsField?: string,
+): MenuItem {
   return {
     type: 'folder',
     label: document.label ?? document._id,
@@ -85,6 +91,7 @@ export function getSectionsFolder(document: {_id: string; label?: string}): Menu
     filter: 'parent._ref == $anchorParentId',
     filterParams: {anchorParentId: getPublishedDocumentId(document._id)},
     sort: 'order',
+    projection: getSectionAnchorProjection(sectionsField),
   }
 }
 
@@ -97,6 +104,7 @@ export function AnchorNavigator({
   onNavigate,
   documentTypes,
   contextDocument,
+  sectionsField,
 }: AnchorNavigatorProps) {
   return (
     <NavigationProvider
@@ -110,6 +118,7 @@ export function AnchorNavigator({
         contextDocument={contextDocument}
         documentTypes={documentTypes}
         searchQuery={searchQuery}
+        sectionsField={sectionsField}
       />
     </NavigationProvider>
   )
@@ -119,10 +128,12 @@ function AnchorNavigatorContent({
   contextDocument,
   documentTypes,
   searchQuery,
+  sectionsField,
 }: {
   contextDocument?: AnchorContextDocument | null
   documentTypes: string[]
   searchQuery?: string
+  sectionsField?: string
 }) {
   const {t} = useTranslation(linkPickerLocaleNamespace)
   const {navigationStack} = useNavigation()
@@ -139,9 +150,9 @@ function AnchorNavigatorContent({
   const linkedFolder = useMemo(
     () =>
       contextDocument?.kind === 'linked' && documentTypes.includes(contextDocument._type)
-        ? getSectionsFolder(contextDocument)
+        ? getSectionsFolder(contextDocument, sectionsField)
         : null,
-    [contextDocument, documentTypes],
+    [contextDocument, documentTypes, sectionsField],
   )
 
   return (
@@ -152,6 +163,7 @@ function AnchorNavigatorContent({
           filter={linkedFolder?.filter}
           filterParams={linkedFolder?.filterParams}
           getTypedResult={getTypedResult}
+          projection={getSectionAnchorProjection(sectionsField)}
           query={query}
           staticRoutes={NO_STATIC_ROUTES}
         />
@@ -160,7 +172,11 @@ function AnchorNavigatorContent({
       ) : currentFolder ? (
         <Folder item={currentFolder} />
       ) : (
-        <DocumentsWithSections contextDocument={contextDocument} documentTypes={documentTypes} />
+        <DocumentsWithSections
+          contextDocument={contextDocument}
+          documentTypes={documentTypes}
+          sectionsField={sectionsField}
+        />
       )}
     </NavigatorFrame>
   )
@@ -175,9 +191,11 @@ type DocumentRow =
 function DocumentsWithSections({
   contextDocument,
   documentTypes,
+  sectionsField,
 }: {
   contextDocument?: AnchorContextDocument | null
   documentTypes: string[]
+  sectionsField?: string
 }) {
   const {t} = useTranslation(linkPickerLocaleNamespace)
   const {hits, loading, loadingMore, hasNextPage, loadMore} = useDocumentSearch('', documentTypes, {
@@ -253,7 +271,7 @@ function DocumentsWithSections({
           }
           if (row.type === 'skeleton') return <SkeletonItem />
           if (row.type === 'empty') return <EmptyFolderState />
-          return <DocumentFolderRow document={row.document} />
+          return <DocumentFolderRow document={row.document} sectionsField={sectionsField} />
         }}
       />
     </Flex>
@@ -261,13 +279,22 @@ function DocumentsWithSections({
 }
 
 /** A document with sections; opening it lists the sections. */
-function DocumentFolderRow({document}: {document: SearchDocument}) {
+function DocumentFolderRow({
+  document,
+  sectionsField,
+}: {
+  document: SearchDocument
+  sectionsField?: string
+}) {
   const {pushFolder} = useNavigation()
   const schema = useSchema()
   const {perspectiveStack} = usePerspective()
   const optionProps = useOptionProps(`sections:${document._id}`)
   const schemaType = schema.get(document._type)
-  const open = useCallback(() => pushFolder(getSectionsFolder(document)), [document, pushFolder])
+  const open = useCallback(
+    () => pushFolder(getSectionsFolder(document, sectionsField)),
+    [document, pushFolder, sectionsField],
+  )
 
   return (
     <Button {...optionProps} mode="bleed" padding={1} width="fill" onClick={open}>

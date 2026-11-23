@@ -35,6 +35,7 @@ import {
   type SchemaType,
 } from 'sanity'
 
+import {SECTION_ANCHOR_TYPE} from './anchors'
 import {getSystemLinkType, normalizeLinkHref, type SystemLinkType} from './href'
 import {linkPickerLocaleNamespace} from './i18n'
 import {
@@ -45,6 +46,7 @@ import {
   type StaticLinkRoute,
 } from './routes'
 import {buildDocumentSearchQuery, type DocumentBrowseSort, SEARCH_PAGE_SIZE} from './search'
+import {SectionPreview} from './section-preview'
 
 export const DefaultIcon = () => <Text>✨</Text>
 
@@ -103,6 +105,12 @@ export type SearchDocument = {
   _originalId?: string
   label?: string
   title?: string
+  /** Section anchors: the anchor's slug */
+  slug?: string
+  /** Section anchors: the section object on its page, and where it lives */
+  section?: unknown
+  parentType?: string
+  sectionsField?: string
 }
 
 /** An item chosen in a picker navigator. */
@@ -157,6 +165,8 @@ export type MenuItem = {
   filterParams?: QueryParams
   /** How a document folder is sorted. Defaults to newest first. */
   sort?: DocumentBrowseSort
+  /** Fields fetched per document in a document folder */
+  projection?: string
 }
 
 function NormalizedLinkIcon({
@@ -468,6 +478,7 @@ type DocumentSearchOptions = {
   mode?: 'search' | 'browse'
   /** Browse order */
   sort?: DocumentBrowseSort
+  projection?: string
 }
 
 type Subscription = {unsubscribe: () => void}
@@ -505,7 +516,14 @@ export function useDocumentSearch(
   documentTypes: string[],
   options: DocumentSearchOptions = {},
 ) {
-  const {debounceMs = SEARCH_DEBOUNCE_MS, filter, filterParams, mode = 'search', sort} = options
+  const {
+    debounceMs = SEARCH_DEBOUNCE_MS,
+    filter,
+    filterParams,
+    mode = 'search',
+    sort,
+    projection,
+  } = options
   const client = useClient({apiVersion: API_VERSION})
   const schema = useSchema()
   const {perspectiveStack} = usePerspective()
@@ -520,8 +538,9 @@ export function useDocumentSearch(
       filter,
       filterParams,
       sort,
+      projection,
     })
-  }, [documentTypes, filter, filterParams, mode, query, schema, sort])
+  }, [documentTypes, filter, filterParams, mode, projection, query, schema, sort])
   const requestKey = request ? JSON.stringify([request, perspectiveStack]) : null
 
   const fetchPage = useCallback(
@@ -611,6 +630,7 @@ export function SearchResults({
   getTypedResult = getTypedLinkResult,
   filter,
   filterParams,
+  projection,
 }: {
   documentTypes: string[]
   query: string
@@ -620,6 +640,8 @@ export function SearchResults({
   /** Extra GROQ filter for the document results */
   filter?: string
   filterParams?: QueryParams
+  /** Fields fetched per document result */
+  projection?: string
 }) {
   const perspective = usePerspective()
   const typedLinkResult = useMemo(() => getTypedResult(query), [getTypedResult, query])
@@ -644,7 +666,7 @@ export function SearchResults({
     loadingMore,
     hasNextPage,
     loadMore,
-  } = useDocumentSearch(query, documentTypes, {filter, filterParams})
+  } = useDocumentSearch(query, documentTypes, {filter, filterParams, projection})
   const results = useMemo(
     () => [
       ...(typedLinkResult ? [typedLinkResult] : []),
@@ -857,6 +879,7 @@ export function Folder({item, title}: {item: MenuItem; title?: string}) {
     filterParams: item.filterParams,
     mode: 'browse',
     sort: item.sort,
+    projection: item.projection,
   })
 
   const rows = useMemo<FolderRow[]>(() => {
@@ -1167,6 +1190,10 @@ function DocumentItem({
     label?: string
     _type?: string
     _id?: string
+    slug?: string
+    section?: unknown
+    parentType?: string
+    sectionsField?: string
   }
   perspectiveStack?: PerspectiveStack
 }) {
@@ -1193,7 +1220,18 @@ function DocumentItem({
         })
       }
     >
-      {schemaType && item._id && item._type ? (
+      {item._type === SECTION_ANCHOR_TYPE ? (
+        // Sections show their own section type's icon, not the anchor document's
+        <Box style={{width: '100%'}}>
+          <SectionPreview
+            section={item.section}
+            parentType={item.parentType}
+            sectionsField={item.sectionsField}
+            title={label}
+            slug={item.slug}
+          />
+        </Box>
+      ) : schemaType && item._id && item._type ? (
         <SearchResultItemPreview
           documentId={item._id}
           documentType={item._type}
