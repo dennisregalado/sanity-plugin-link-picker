@@ -34,6 +34,11 @@ All notable changes to this project are documented here. The format is based on
 
 - A link to a deleted document shows "Document not found" instead of loading forever, and a
   missing section's "Section not found" is no longer clipped.
+- `react` and `sanity` are optional peer dependencies. The `anchors` and `resolve` entry points
+  import neither, so a Sanity Function that installs the plugin for `syncSectionAnchors` no longer
+  pulls in the Studio. `sanity blueprints deploy` runs `npm install` for each Function and refused
+  the bundle ("Native modules detected") when npm installed `sanity` and its native build tools.
+  Studios install both anyway.
 
 ## [2.4.0] - 2026-11-23
 

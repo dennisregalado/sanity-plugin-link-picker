@@ -340,6 +340,8 @@ Sections' own slugs are reserved before generated ones, so a section that picked
 npm install @sanity/functions @sanity/client sanity-plugin-link-picker
 ```
 
+`react` and `sanity` are optional peer dependencies, so the Function doesn't install the Studio: `sanity-plugin-link-picker/anchors` imports neither.
+
 ```ts
 // sanity.blueprint.ts
 import {defineBlueprint, defineDocumentFunction} from '@sanity/blueprints'

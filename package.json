@@ -86,6 +86,14 @@
     "react": "^19.2",
     "sanity": "^6.10.0"
   },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "sanity": {
+      "optional": true
+    }
+  },
   "browserslist": "extends @sanity/browserslist-config",
   "engines": {
     "node": ">=20.19 <22 || >=22.12"
