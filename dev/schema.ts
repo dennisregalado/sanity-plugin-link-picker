@@ -3,6 +3,26 @@ import {TextIcon} from '@sanity/icons/Text'
 import {defineArrayMember, defineField, defineType} from 'sanity'
 import {documents, route} from 'sanity-plugin-link-picker'
 
+/**
+ * A section's own anchor slug, used by the anchors Function instead of one generated from the
+ * heading (see README, "Stable slugs").
+ */
+const sectionSlug = (headingField: string) =>
+  defineField({
+    name: 'slug',
+    title: 'Anchor',
+    type: 'slug',
+    description: 'The #fragment that links to this section. Generated from the heading when empty.',
+    options: {
+      source: (_document, {parent}) => {
+        const heading = Array.isArray(parent) ? undefined : parent[headingField]
+        return typeof heading === 'string' ? heading : ''
+      },
+      // Unique within the page is enough; the Function makes slugs unique per page
+      isUnique: () => true,
+    },
+  })
+
 /** Minimal stand-ins for the dataset's linkable types, so previews and search work. */
 const linkable = ['page', 'product', 'collection'].map((name) =>
   defineType({
@@ -23,7 +43,7 @@ const linkable = ['page', 'product', 'collection'].map((name) =>
                   type: 'object',
                   title: 'Image hero',
                   icon: ImageIcon,
-                  fields: [defineField({name: 'heading', type: 'string'})],
+                  fields: [defineField({name: 'heading', type: 'string'}), sectionSlug('heading')],
                   preview: {
                     select: {heading: 'heading'},
                     prepare: ({heading}) => ({title: 'Image hero', subtitle: heading}),
@@ -34,7 +54,7 @@ const linkable = ['page', 'product', 'collection'].map((name) =>
                   type: 'object',
                   title: 'Text section',
                   icon: TextIcon,
-                  fields: [defineField({name: 'title', type: 'string'})],
+                  fields: [defineField({name: 'title', type: 'string'}), sectionSlug('title')],
                   preview: {
                     select: {title: 'title'},
                     prepare: ({title}) => ({title: 'Text section', subtitle: title}),

@@ -123,7 +123,7 @@ Project the fields your frontend needs. The plugin does not assume what an inter
 }
 ```
 
-Then resolve the href in your app:
+Then resolve the href in your app. `resolveLinkHref` from `sanity-plugin-link-picker/resolve` does this, anchors and unsafe URLs included (see [Resolving links on the frontend](#resolving-links-on-the-frontend)), or write your own:
 
 ```ts
 type ProjectedLink = {
@@ -287,7 +287,8 @@ defineField({name: 'jumpTo', title: 'Jump to', type: 'anchor'})
 ### The anchor picker
 
 - **In a link that points at a document**, the picker goes straight to that document's sections. The anchor can only be on the linked page, so there's no page to choose. Typing searches those sections.
-- **Anywhere else** (a standalone `anchor` field, or a link with no reference), the picker lists every document that has sections, with the current document first. Click a document to see its sections in page order. Typing searches all sections.
+- **In a link to a URL**, or to a document type without sections, there's nothing to pick: the picker says so, and offers what you type as a custom fragment.
+- **Anywhere else** (a standalone `anchor` field, or a link with no target), the picker lists every document that has sections, with the current document first. Click a document to see its sections in page order. Typing searches all sections.
 
 The typed text is always offered as a custom fragment (`team` becomes `#team`). A selected section shows as a breadcrumb, `Page › Section #slug`. Inside a link to that page, where the page is already shown next to it, it's just `Section #slug`.
 
@@ -295,15 +296,45 @@ Clicking a selected section opens its page in a pane to the right, with that sec
 
 When a link's reference changes to another page (or to a URL), its section anchor is cleared, since it belonged to the old page. A custom `#fragment` is kept.
 
+Links that can't work are flagged with validation warnings, which don't block publishing:
+
+- the linked document was deleted, or isn't published yet;
+- the selected section was removed from its page;
+- the selected section isn't on the page the link goes to (for example after an edit through the API), or the link goes to a URL, where only a custom fragment works.
+
+A link with only an anchor goes to a section on the current page, so its section has to be on the document being edited.
+
 ### Creating anchors with a Sanity Function
 
 A Function creates a `sectionAnchor` document for each section in a document's `sections` array, and keeps them in sync on publish:
 
-- the slug is generated from the section's heading (its `heading`, `title`, `name` or `label`) and made unique within the document (`features`, `features-2`);
+- the slug is the section's own `slug` field when it has one, else generated from its heading (its `heading`, `title`, `name` or `label`), and made unique within the document (`features`, `features-2`);
 - the document id comes from the parent document and the section's `_key`, so links keep pointing at the same section when its heading (and slug) changes;
 - sections without a heading get no anchor; when a section or the whole document is deleted, its anchors are deleted, and links to them stop resolving (references are weak).
 
-Anchors are written for published documents only, so a new section can be picked once its page is published.
+Anchors are written for published documents only, so a new section can be picked once its page is published. Until then, the page's sections list in the picker says so.
+
+#### Stable slugs
+
+A generated slug follows the heading: rename "Our team" to "Meet the team" and `#our-team` becomes `#meet-the-team`. Links picked in the Studio keep working (they reference the section, not the slug), but typed fragments and links from outside the site don't. To pin a section's slug, give the section type a `slug` field; the Function uses it instead of the heading:
+
+```ts
+defineField({
+  name: 'slug',
+  title: 'Anchor',
+  type: 'slug',
+  description: 'The #fragment that links to this section. Generated from the heading when empty.',
+  options: {
+    source: (_document, {parent}) =>
+      !Array.isArray(parent) && typeof parent.heading === 'string' ? parent.heading : '',
+    // Slugs only need to be unique within their page, which the Function takes care of;
+    // the default check would reject `team` on a second page
+    isUnique: () => true,
+  },
+})
+```
+
+Sections' own slugs are reserved before generated ones, so a section that picked `team` keeps it even if an earlier section is headed "Team". A section with a slug gets an anchor even without a heading. To read the slug from another field, pass `getSlug` (to `getSectionAnchors` too, so your frontend renders the same ids).
 
 ```sh
 npm install @sanity/functions @sanity/client sanity-plugin-link-picker
@@ -346,6 +377,7 @@ The `operation` in the projection is what lets the Function delete anchors when 
 | ---------- | ---------------------------------- | --------------------- | ------------------------------------------ |
 | `field`    | `string`                           | `'sections'`          | The array field holding the sections.      |
 | `getTitle` | `(section) => string \| undefined` | `heading`, `title`, … | Reads a section's heading.                 |
+| `getSlug`  | `(section) => string \| undefined` | `slug`                | Reads a section's own slug.                |
 | `dryRun`   | `boolean`                          | `false`               | Computes the changes without writing them. |
 
 `sanity-plugin-link-picker/anchors` has no dependency on `sanity` or React, so it is safe to use in Functions and frontends. To backfill anchors for existing pages, run `syncSectionAnchors` over them once from a script with a write token.
@@ -376,12 +408,10 @@ link {
 ```
 
 ```ts
-function resolveHref(link: ProjectedLink) {
-  // resolveLink from "Querying Links" above
-  const base = resolveLink(link) ?? ''
-  const hash = link.anchor?.url ?? (link.anchor?.slug ? `#${link.anchor.slug}` : '')
-  return base + hash || null
-}
+import {resolveLinkHref} from 'sanity-plugin-link-picker/resolve'
+
+resolveLinkHref(link, {resolveReference: (ref) => (ref.slug ? `/${ref.slug.current}` : null)})
+// '/about#team'
 ```
 
 Render each section with the matching `id`, using the same helper as the Function:
@@ -396,11 +426,44 @@ page.sections.map((section) => (
 ))
 ```
 
-Pass the same `getTitle` to `getSectionAnchors` as to `syncSectionAnchors` if you customized it.
+Pass the same `getTitle` and `getSlug` to `getSectionAnchors` as to `syncSectionAnchors` if you customized them.
+
+## Resolving links on the frontend
+
+`sanity-plugin-link-picker/resolve` turns a queried link into an `href`. It imports nothing (no `sanity`, React or other helpers), so it adds only itself to a frontend bundle.
+
+```groq
+link {
+  label,
+  url,
+  reference->{_type, "slug": slug.current},
+  anchor {url, "slug": reference->slug.current}
+}
+```
+
+```ts
+import {resolveLinkHref} from 'sanity-plugin-link-picker/resolve'
+
+const href = resolveLinkHref(link, {
+  resolveReference: (ref) => {
+    if (ref._type === 'page') return ref.slug ? `/${ref.slug}` : '/'
+    if (ref._type === 'product') return `/products/${ref.slug}`
+    return null
+  },
+})
+```
+
+- A URL link returns its URL; a document link returns what `resolveReference` returns for the projected `reference`, which is typed by your query.
+- The anchor's custom `url` or its section's slug is added as the `#fragment`, replacing one already in the URL. `mailto:` and `tel:` links ignore anchors. A link with only an anchor returns the fragment (`#team`).
+- It returns `null` when there's nothing to link to, when `resolveReference` returns `null` (an unpublished document, or a type without a route: rather than linking to the anchor on the current page), and for unsupported schemes such as `javascript:` (see [Rendering links safely](#rendering-links-safely)).
+
+The anchor can be projected as a string, `coalesce(anchor.url, "#" + anchor.reference->slug.current)`, or as `anchor {url, reference->{slug}}`; `getAnchorFragment(anchor)` returns just the fragment.
 
 ## Rendering links safely
 
 `url` holds what editors entered, normalized. Validation rejects `javascript:` and other unsupported schemes, and protocol-relative URLs (`//example.com`) are stored as `https://`. But values written through the API, or drafts with validation errors, skip the Studio, so check the scheme before rendering:
+
+`resolveLinkHref` does this check for you. Otherwise:
 
 ```ts
 const SAFE_URL = /^(https?:|mailto:|tel:|\/(?!\/)|#|\?)/i
@@ -435,7 +498,7 @@ const norwegian = defineLocaleResourceBundle({
 // defineConfig({i18n: {bundles: [norwegian]}, ...})
 ```
 
-The `LinkPickerLocaleResourceKeys` type lists every key.
+The `LinkPickerLocaleResourceKeys` type lists every key. Validation messages (`validation.*`) are translated the same way. Outside the Studio, for example in `sanity documents validate`, they're in English.
 
 ## Accessibility
 
@@ -619,10 +682,13 @@ import {
   buildSectionAnchorDocuments,
   getAnchorDocumentId,
   getDefaultSectionTitle,
+  getDefaultSectionSlug,
   slugify,
   SECTION_ANCHOR_TYPE,
   DEFAULT_SECTIONS_FIELD,
 } from 'sanity-plugin-link-picker/anchors'
+// Resolving links on the frontend (no imports at all)
+import {resolveLinkHref, getAnchorFragment} from 'sanity-plugin-link-picker/resolve'
 ```
 
 ## Development
@@ -636,8 +702,11 @@ npm run lint       # oxlint (type-aware)
 npm run format     # oxfmt
 npm run typecheck
 npm test           # vitest
+npm run test:e2e   # Playwright: the test studio against a mocked Content Lake
 npm run build      # plugin-kit verify-package + pkg-utils build --strict
 ```
+
+The browser tests (`e2e/`) start the test studio and answer its API requests from an in-memory dataset (`e2e/mock-api.ts`), so they need no project. Install the browser once with `npx playwright install chromium`.
 
 The test studio needs a Sanity project: copy `dev/.env.example` to `dev/.env.development` and fill it in. Opening the demo document doesn't write anything; filled-in examples come from `initialValue`.
 

@@ -16,6 +16,8 @@ const linkPickerResources = {
   'folder.back': 'Back',
   /** Tooltip and accessible label for the button that replaces a selected reference */
   'reference.replace': 'Replace reference',
+  /** Shown in place of a linked document that doesn't exist anymore */
+  'reference.missing': 'Document not found',
   /** Accessible label for a URL shown as its preset route; clicking it edits the URL */
   'link.edit': 'Edit link',
   /** Tooltip and accessible label for the button that clears a preset, email or phone link */
@@ -36,6 +38,30 @@ const linkPickerResources = {
   'anchor.missing': 'Section not found',
   /** Fallback for a document or section without a title */
   'anchor.untitled': 'Untitled',
+  /** Picker hint inside a link to a URL, where only a custom fragment can be added */
+  'anchor.fragment-only.url': 'This link goes to a URL. Type a fragment like #team to add one.',
+  /** Picker hint inside a link to a document type without sections */
+  'anchor.fragment-only.no-sections':
+    "The linked document doesn't have sections. Type a fragment like #team to add one.",
+  /** Shown in a document's sections list when it has no sections to pick yet */
+  'anchor.no-sections': 'No sections yet. Sections can be picked once their page is published.',
+
+  /** Validation: the link's URL isn't a supported link */
+  'validation.invalid-url': 'Must be a path, query string, URL, email address, or phone number',
+  /** Validation: the anchor's custom fragment isn't valid */
+  'validation.invalid-anchor': 'Must be a fragment like #my-section, without spaces',
+  /** Validation warning: the linked document was deleted */
+  'validation.reference-missing': "The linked document doesn't exist anymore",
+  /** Validation warning: the linked document only exists as a draft or in a release */
+  'validation.reference-unpublished':
+    "The linked document isn't published yet, so the link won't work until it is",
+  /** Validation warning: the selected section was removed from its page, or its page deleted */
+  'validation.section-missing': "This section doesn't exist anymore",
+  /** Validation warning: a section was picked for a link that goes to a URL */
+  'validation.anchor-needs-document':
+    'Sections only work in links to a document. Use a custom fragment like #team for a URL.',
+  /** Validation warning: the picked section is on another page than the link goes to */
+  'validation.anchor-other-page': "This section isn't on the page this link goes to",
 } as const
 
 export default linkPickerResources

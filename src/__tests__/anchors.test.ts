@@ -81,6 +81,44 @@ describe('getSectionAnchors', () => {
     expect(anchors[0]?.slug).toBe('custom')
   })
 
+  it("uses a section's own slug, which keeps its anchor when the heading changes", () => {
+    expect(
+      getSectionAnchors([
+        {_key: 'a', heading: 'Meet the people', slug: {_type: 'slug', current: 'team'}},
+        {_key: 'b', heading: 'Pricing', slug: '#Plans & Pricing'},
+      ]),
+    ).toEqual([
+      {key: 'a', title: 'Meet the people', slug: 'team', order: 0},
+      {key: 'b', title: 'Pricing', slug: 'plans-pricing', order: 1},
+    ])
+  })
+
+  it('reserves own slugs before generating, so a later section keeps the slug it chose', () => {
+    expect(
+      getSectionAnchors([
+        {_key: 'a', heading: 'Team'},
+        {_key: 'b', heading: 'Our people', slug: 'team'},
+        {_key: 'c', heading: 'Crew', slug: 'team'},
+      ]).map((anchor) => anchor.slug),
+    ).toEqual(['team-3', 'team', 'team-2'])
+  })
+
+  it('gives a section with a slug but no heading an anchor titled by its slug', () => {
+    expect(getSectionAnchors([{_key: 'a', slug: 'contact'}])).toEqual([
+      {key: 'a', title: 'contact', slug: 'contact', order: 0},
+    ])
+  })
+
+  it('generates from the heading when the slug is empty, and accepts a custom slug reader', () => {
+    expect(getSectionAnchors([{_key: 'a', heading: 'FAQ', slug: {current: ' '}}])[0]?.slug).toBe(
+      'faq',
+    )
+    const anchors = getSectionAnchors([{_key: 'a', heading: 'FAQ', anchorId: 'questions'}], {
+      getSlug: (section) => (typeof section.anchorId === 'string' ? section.anchorId : undefined),
+    })
+    expect(anchors[0]?.slug).toBe('questions')
+  })
+
   it('returns nothing for a missing sections array', () => {
     expect(getSectionAnchors(undefined)).toEqual([])
     expect(getSectionAnchors({})).toEqual([])

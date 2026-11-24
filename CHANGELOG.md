@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `resolveLinkHref(link, {resolveReference})` in a new `sanity-plugin-link-picker/resolve` entry
+  point, which imports nothing: turns a queried link into an `href`, with the anchor's
+  `#fragment` (replacing one in the URL), and refuses unsupported schemes like `javascript:`. A
+  document link whose reference can't be resolved returns `null` rather than a bare fragment.
+  `getAnchorFragment(anchor)` returns just the fragment.
+- Sections can pin their anchor slug with a `slug` field, used by `syncSectionAnchors` and
+  `getSectionAnchors` instead of one generated from the heading, so `#team` survives a heading
+  change. Own slugs are reserved before generated ones; read another field with `getSlug`.
+- Validation warnings (they don't block publishing) for links that can't work: a deleted or
+  unpublished linked document, a section removed from its page, a section that isn't on the page
+  the link goes to, and a section picked for a link to a URL.
+- Inside a link to a URL, or to a document type without sections, the anchor picker no longer
+  lists other pages' sections: it says why and offers the typed text as a custom fragment.
+- A linked page without sections yet says that sections can be picked once the page is published.
+- Browser smoke tests (`npm run test:e2e`, Playwright) run the dev Studio against a mocked
+  Content Lake in CI.
+
+### Changed
+
+- Validation messages are translatable through the plugin's locale bundle (`validation.*` keys),
+  falling back to English outside the Studio.
+
+### Fixed
+
+- A link to a deleted document shows "Document not found" instead of loading forever, and a
+  missing section's "Section not found" is no longer clipped.
+
 ## [2.4.0] - 2026-11-23
 
 ### Added
@@ -144,6 +175,7 @@ Requires Sanity Studio 6. See [MIGRATION.md](./MIGRATION.md#upgrading-from-1x-to
 - Renamed to `sanity-plugin-link-picker`; `linkPicker(routes, options)` API with `route`, `group` and
   `documents` helpers. See [MIGRATION.md](./MIGRATION.md#migrating-from-sanity-plugin-link-to-11).
 
+[Unreleased]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.4.0...HEAD
 [2.4.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/dennisregalado/sanity-plugin-link-picker/compare/v2.2.0...v2.2.1

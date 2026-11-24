@@ -1,13 +1,14 @@
 import {ChevronRightIcon} from '@sanity/icons/ChevronRight'
 import {DocumentIcon} from '@sanity/icons/Document'
 import {HashIcon} from '@sanity/icons/Hash'
-import {Box, Text} from '@sanity/ui'
+import {Box} from '@sanity/ui'
 import type React from 'react'
 import {useEffect, useState} from 'react'
 import {SanityDefaultPreview, useClient, usePerspective, useSchema, useTranslation} from 'sanity'
 
+import {API_VERSION} from './constants'
 import {linkPickerLocaleNamespace} from './i18n'
-import {API_VERSION, usePreviewTitle} from './navigator'
+import {MutedPreview, usePreviewTitle} from './navigator'
 import {getSectionFields, useSectionPreview} from './section-preview'
 
 export type AnchorSummary = {
@@ -131,10 +132,8 @@ export function AnchorBreadcrumb({
 
   if (summary === null) {
     return (
-      <Box paddingX={2}>
-        <Text muted size={1}>
-          {t('anchor.missing')}
-        </Text>
+      <Box style={{width: '100%'}}>
+        <MutedPreview>{t('anchor.missing')}</MutedPreview>
       </Box>
     )
   }

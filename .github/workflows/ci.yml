@@ -37,3 +37,17 @@ jobs:
           tar -xzf "$RUNNER_TEMP"/*.tgz -C "$RUNNER_TEMP" package/package.json
           node scripts/publish-exports.mjs check "$RUNNER_TEMP/package/package.json"
           git diff --exit-code package.json
+
+  e2e:
+    name: Browser smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          cache: npm
+          node-version: 24
+      - run: npm clean-install
+      - run: npx playwright install --with-deps chromium
+      # Starts the dev Studio against a mocked Content Lake (e2e/mock-api.ts)
+      - run: npm run test:e2e
