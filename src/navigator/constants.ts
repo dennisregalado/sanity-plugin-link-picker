@@ -1,0 +1,7 @@
+export const NAVIGATOR_MAX_HEIGHT = 390
+
+export const VIRTUAL_LIST_OVERSCAN = 5
+
+export const VIRTUAL_ROW_ESTIMATE_SIZE = 52
+
+export const SEARCH_DEBOUNCE_MS = 300

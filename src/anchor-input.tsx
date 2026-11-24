@@ -2,7 +2,7 @@ import {Box, Stack} from '@sanity/ui'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import {type Path, useDocumentPreviewStore, useFormValue, usePerspective} from 'sanity'
 
-import {type AnchorContextDocument, AnchorNavigator} from './anchor-navigator'
+import {type AnchorContext, AnchorNavigator} from './anchor-navigator'
 import {isAnchorHref, normalizeAnchorHref} from './href'
 import {getPublishedDocumentId} from './ids'
 import {
@@ -26,7 +26,7 @@ function isBrowseValue(value: string) {
 export function AnchorInput(props: AnchorInputProps) {
   const {members, onChange, onPathFocus, path, readOnly, renderDefault, schemaType, value} = props
   const documentTypes = props.pluginOptions.documentTypes
-  const contextDocument = useAnchorContextDocument(path)
+  const context = useAnchorContext(path, documentTypes)
   const hasReference = Boolean(value?.reference)
 
   // The anchor field renders without its own wrapper (see createAnchorType), so the inner
@@ -68,12 +68,12 @@ export function AnchorInput(props: AnchorInputProps) {
     (navigatorProps: PickerNavigatorProps) => (
       <AnchorNavigator
         {...navigatorProps}
-        contextDocument={contextDocument}
+        context={context}
         documentTypes={documentTypes}
         sectionsField={props.pluginOptions.field}
       />
     ),
-    [contextDocument, documentTypes, props.pluginOptions.field],
+    [context, documentTypes, props.pluginOptions.field],
   )
 
   return (
@@ -85,7 +85,7 @@ export function AnchorInput(props: AnchorInputProps) {
       renderNavigator={renderNavigator}
       normalizeHref={normalizeAnchorHref}
       isBrowseValue={isBrowseValue}
-      linkedDocumentId={contextDocument?.kind === 'linked' ? contextDocument._id : undefined}
+      linkedDocumentId={context?.kind === 'linked' ? context._id : undefined}
       sectionsField={props.pluginOptions.field}
     >
       {(setAnchorElement) => (
@@ -106,13 +106,13 @@ type ParentLinkValue = {
 }
 
 /**
- * The document whose sections the picker lists first:
- * - inside a link that points at a document, that document;
- * - inside a link with an external URL or path, none;
- * - otherwise (a standalone field, or a link with no target or a `#hash`), the document being
- *   edited.
+ * What the anchor picker offers:
+ * - inside a link that points at a document with sections, that document's sections;
+ * - inside a link to a URL, or to a document without sections, only a custom `#fragment`;
+ * - otherwise (a standalone field, or a link with no target or a `#hash`), every document with
+ *   sections, the one being edited first.
  */
-function useAnchorContextDocument(path: Path): AnchorContextDocument | null {
+function useAnchorContext(path: Path, documentTypes: string[]): AnchorContext | null {
   // Only a field nested in an object can be part of a link
   const parentValue = useFormValue(path.length > 1 ? path.slice(0, -1) : ['_id'])
   const parent: ParentLinkValue | null =
@@ -124,19 +124,24 @@ function useAnchorContextDocument(path: Path): AnchorContextDocument | null {
   const linkedType = useDocumentType(linkedId)
   const pointsElsewhere = Boolean(parent?.url && !parent.url.startsWith('#'))
 
-  return useMemo(() => {
+  return useMemo<AnchorContext | null>(() => {
     if (linkedId) {
-      return linkedType ? {_id: linkedId, _type: linkedType, kind: 'linked'} : null
+      if (linkedType === undefined) return {kind: 'loading'}
+      return linkedType && documentTypes.includes(linkedType)
+        ? {kind: 'linked', _id: linkedId, _type: linkedType}
+        : {kind: 'fragment-only', reason: 'no-sections'}
     }
-    if (pointsElsewhere || typeof currentId !== 'string' || typeof currentType !== 'string') {
-      return null
-    }
-    return {_id: getPublishedDocumentId(currentId), _type: currentType, kind: 'current'}
-  }, [currentId, currentType, linkedId, linkedType, pointsElsewhere])
+    if (pointsElsewhere) return {kind: 'fragment-only', reason: 'url'}
+    if (typeof currentId !== 'string' || typeof currentType !== 'string') return null
+    return {kind: 'current', _id: getPublishedDocumentId(currentId), _type: currentType}
+  }, [currentId, currentType, documentTypes, linkedId, linkedType, pointsElsewhere])
 }
 
-/** A document's type, live and in the current perspective. */
-function useDocumentType(documentId: string | undefined): string | null {
+/**
+ * A document's type, live and in the current perspective: `undefined` while loading, `null` when
+ * the document doesn't exist.
+ */
+function useDocumentType(documentId: string | undefined): string | null | undefined {
   const documentPreviewStore = useDocumentPreviewStore()
   const {perspectiveStack} = usePerspective()
   const [resolved, setResolved] = useState<{id: string; type: string | null} | null>(null)
@@ -149,5 +154,6 @@ function useDocumentType(documentId: string | undefined): string | null {
     return () => subscription.unsubscribe()
   }, [documentId, documentPreviewStore, perspectiveStack])
 
-  return documentId && resolved?.id === documentId ? resolved.type : null
+  if (!documentId) return null
+  return resolved?.id === documentId ? resolved.type : undefined
 }

@@ -1,6 +1,14 @@
 {
   "extends": "./tsconfig.settings",
-  "include": ["./src", "./dev", "./package.config.ts", "./oxfmt.config.ts", "./oxlint.config.ts"],
+  "include": [
+    "./src",
+    "./dev",
+    "./e2e",
+    "./package.config.ts",
+    "./playwright.config.ts",
+    "./oxfmt.config.ts",
+    "./oxlint.config.ts"
+  ],
   "compilerOptions": {
     "paths": {
       // The dev studio imports the plugin by name; resolve it to the source

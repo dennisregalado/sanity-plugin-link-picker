@@ -66,3 +66,7 @@ dev/.env*
 
 # Temporary backup made by scripts/publish-exports.mjs during npm pack
 package.json.prepack
+
+# Playwright
+test-results
+playwright-report

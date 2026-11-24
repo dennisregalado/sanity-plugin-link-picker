@@ -28,6 +28,7 @@ import {
   NAVIGATOR_MAX_HEIGHT,
   NavigationProvider,
   NavigatorFrame,
+  PickerHint,
   ResultAnnouncement,
   ScrollableList,
   type SearchDocument,
@@ -40,28 +41,41 @@ import {
 } from './navigator'
 import {getSectionAnchorProjection} from './section-preview'
 
-/** The document whose sections are listed first. */
-export type AnchorContextDocument = {
-  _id: string
-  _type: string
-  /**
-   * `current`: the document being edited, listed first. `linked`: the document the surrounding
-   * link points to; the picker only offers its sections.
-   */
-  kind: 'current' | 'linked'
-}
+/** Where the anchor field is, which decides what the picker offers. */
+export type AnchorContext =
+  | {
+      /**
+       * `current`: the document being edited, listed first. `linked`: the document the
+       * surrounding link points to; the picker only offers its sections.
+       */
+      kind: 'current' | 'linked'
+      _id: string
+      _type: string
+    }
+  | {
+      /**
+       * Only a custom `#fragment` can be used: the surrounding link goes to a URL (`url`), or to
+       * a document without sections (`no-sections`).
+       */
+      kind: 'fragment-only'
+      reason: 'url' | 'no-sections'
+    }
+  /** The linked document's type is loading. */
+  | {kind: 'loading'}
 
 type AnchorNavigatorProps = BaseNavigatorProps & {
   /** Document types that have sections. */
   documentTypes: string[]
   /** The sections array field, for looking up each section's type (its icon) */
   sectionsField?: string
-  contextDocument?: AnchorContextDocument | null
+  context?: AnchorContext | null
 }
 
 const ANCHOR_TYPES = [SECTION_ANCHOR_TYPE]
 
 const NO_STATIC_ROUTES: never[] = []
+
+const NO_DOCUMENT_TYPES: string[] = []
 
 const NO_ACTIVE_OPTION = null
 
@@ -103,7 +117,7 @@ export function AnchorNavigator({
   optionIdPrefix = 'anchor-picker',
   onNavigate,
   documentTypes,
-  contextDocument,
+  context,
   sectionsField,
 }: AnchorNavigatorProps) {
   return (
@@ -115,7 +129,7 @@ export function AnchorNavigator({
       optionIdPrefix={optionIdPrefix}
     >
       <AnchorNavigatorContent
-        contextDocument={contextDocument}
+        context={context}
         documentTypes={documentTypes}
         searchQuery={searchQuery}
         sectionsField={sectionsField}
@@ -125,12 +139,12 @@ export function AnchorNavigator({
 }
 
 function AnchorNavigatorContent({
-  contextDocument,
+  context,
   documentTypes,
   searchQuery,
   sectionsField,
 }: {
-  contextDocument?: AnchorContextDocument | null
+  context?: AnchorContext | null
   documentTypes: string[]
   searchQuery?: string
   sectionsField?: string
@@ -149,11 +163,46 @@ function AnchorNavigatorContent({
   // picker skips choosing a document
   const linkedFolder = useMemo(
     () =>
-      contextDocument?.kind === 'linked' && documentTypes.includes(contextDocument._type)
-        ? getSectionsFolder(contextDocument, sectionsField)
+      context?.kind === 'linked' && documentTypes.includes(context._type)
+        ? getSectionsFolder(context, sectionsField)
         : null,
-    [contextDocument, documentTypes, sectionsField],
+    [context, documentTypes, sectionsField],
   )
+  const noSections = t('anchor.no-sections')
+
+  if (context?.kind === 'fragment-only') {
+    // Nothing to pick, only the typed fragment to use
+    return (
+      <NavigatorFrame>
+        {query ? (
+          <SearchResults
+            documentTypes={NO_DOCUMENT_TYPES}
+            getTypedResult={getTypedResult}
+            query={query}
+            staticRoutes={NO_STATIC_ROUTES}
+          />
+        ) : (
+          <PickerHint>
+            {t(
+              context.reason === 'url'
+                ? 'anchor.fragment-only.url'
+                : 'anchor.fragment-only.no-sections',
+            )}
+          </PickerHint>
+        )}
+      </NavigatorFrame>
+    )
+  }
+
+  if (context?.kind === 'loading') {
+    return (
+      <NavigatorFrame>
+        {Array.from({length: 3}, (_, index) => (
+          <SkeletonItem key={index} />
+        ))}
+      </NavigatorFrame>
+    )
+  }
 
   return (
     <NavigatorFrame>
@@ -168,12 +217,12 @@ function AnchorNavigatorContent({
           staticRoutes={NO_STATIC_ROUTES}
         />
       ) : linkedFolder ? (
-        <Folder item={linkedFolder} title={t('anchor.linked-sections')} />
+        <Folder emptyMessage={noSections} item={linkedFolder} title={t('anchor.linked-sections')} />
       ) : currentFolder ? (
-        <Folder item={currentFolder} />
+        <Folder emptyMessage={noSections} item={currentFolder} />
       ) : (
         <DocumentsWithSections
-          contextDocument={contextDocument}
+          contextDocument={context}
           documentTypes={documentTypes}
           sectionsField={sectionsField}
         />
@@ -193,7 +242,7 @@ function DocumentsWithSections({
   documentTypes,
   sectionsField,
 }: {
-  contextDocument?: AnchorContextDocument | null
+  contextDocument?: AnchorContext | null
   documentTypes: string[]
   sectionsField?: string
 }) {

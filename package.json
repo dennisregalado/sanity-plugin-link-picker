@@ -1,6 +1,6 @@
 {
   "name": "sanity-plugin-link-picker",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "A small Sanity Studio link field for choosing a label, a URL, or a weak reference.",
   "keywords": [
     "sanity",
@@ -31,12 +31,17 @@
       "source": "./src/anchors/index.ts",
       "default": "./dist/anchors.js"
     },
+    "./resolve": {
+      "source": "./src/resolve/index.ts",
+      "default": "./dist/resolve.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "exports": {
       ".": "./dist/index.js",
       "./anchors": "./dist/anchors.js",
+      "./resolve": "./dist/resolve.js",
       "./package.json": "./package.json"
     }
   },
@@ -50,6 +55,7 @@
     "prepack": "node scripts/publish-exports.mjs apply",
     "prepublishOnly": "npm run typecheck && npm run build",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "watch": "pkg-utils watch --strict"
   },
@@ -59,11 +65,13 @@
     "@tanstack/react-virtual": "^3.14.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@sanity/browserslist-config": "^1.0.5",
     "@sanity/pkg-utils": "^13.0.18",
     "@sanity/plugin-kit": "^10.1.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.2.17",
+    "groq-js": "^2.0.3",
     "oxfmt": "^0.73.0",
     "oxlint": "^1.94.0",
     "oxlint-tsgolint": "^7.0.2007",

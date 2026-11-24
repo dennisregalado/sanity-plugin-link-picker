@@ -52,6 +52,13 @@ export type SectionValue = {
 export type GetSectionTitle = (section: SectionValue) => string | undefined
 
 /**
+ * Returns a section's own slug, or `undefined` to generate one from its heading.
+ *
+ * @public
+ */
+export type GetSectionSlug = (section: SectionValue) => string | undefined
+
+/**
  * An anchor derived from a section.
  *
  * @public
@@ -79,6 +86,12 @@ export type SectionAnchorOptions = {
    * a heading get no anchor.
    */
   getTitle?: GetSectionTitle
+  /**
+   * Reads a section's own slug, which is used instead of one generated from its heading, so it
+   * doesn't change when the heading does. Defaults to the section's `slug` field (a `slug` type
+   * or a string). Sections with a slug get an anchor even without a heading.
+   */
+  getSlug?: GetSectionSlug
 }
 
 /**
@@ -141,9 +154,24 @@ export const getDefaultSectionTitle: GetSectionTitle = (section) => {
 }
 
 /**
- * Anchors for a document's sections, in order. Slugs come from each section's heading and are
- * made unique within the document (`features`, `features-2`, …). Sections without a `_key` or a
- * heading are skipped.
+ * The default {@link GetSectionSlug}: the section's `slug` field, as a `slug` type
+ * (`{current}`) or a string.
+ *
+ * @public
+ */
+export const getDefaultSectionSlug: GetSectionSlug = (section) => {
+  const slug: unknown = section.slug
+  if (typeof slug === 'string') return slug
+  if (slug && typeof slug === 'object' && 'current' in slug && typeof slug.current === 'string') {
+    return slug.current
+  }
+  return undefined
+}
+
+/**
+ * Anchors for a document's sections, in order. Slugs come from each section's own `slug` field
+ * when it has one, else from its heading, and are made unique within the document (`features`,
+ * `features-2`, …). Sections without a `_key`, or without both a slug and a heading, are skipped.
  *
  * Use the same function on your frontend to render matching `id` attributes:
  *
@@ -160,22 +188,36 @@ export function getSectionAnchors(
   options: SectionAnchorOptions = {},
 ): SectionAnchor[] {
   if (!Array.isArray(sections)) return []
-  const {getTitle = getDefaultSectionTitle} = options
+  const {getTitle = getDefaultSectionTitle, getSlug = getDefaultSectionSlug} = options
+
+  const candidates = sections.flatMap((section: unknown, order) => {
+    if (!isSection(section)) return []
+    const custom = slugify(getSlug(section)?.trim() ?? '')
+    const title = getTitle(section)?.trim() || custom
+    if (!title) return []
+    return [{key: section._key, title, order, custom}]
+  })
+
+  // Sections' own slugs are reserved first, so a generated slug never takes one
   const used = new Set<string>()
-  const anchors: SectionAnchor[] = []
-
-  sections.forEach((section: unknown, order) => {
-    if (!isSection(section)) return
-    const title = getTitle(section)?.trim()
-    if (!title) return
-
-    const base = slugify(title) || 'section'
+  const unique = (base: string) => {
     let slug = base
     for (let suffix = 2; used.has(slug); suffix++) slug = `${base}-${suffix}`
     used.add(slug)
+    return slug
+  }
+  const customSlugs = new Map(
+    candidates.flatMap((candidate) =>
+      candidate.custom ? [[candidate.key, unique(candidate.custom)] as const] : [],
+    ),
+  )
 
-    anchors.push({key: section._key, title, slug, order})
-  })
+  const anchors: SectionAnchor[] = candidates.map(({key, title, order}) => ({
+    key,
+    title,
+    slug: customSlugs.get(key) ?? unique(slugify(title) || 'section'),
+    order,
+  }))
 
   return anchors
 }

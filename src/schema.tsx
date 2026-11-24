@@ -3,7 +3,6 @@ import {defineField, defineType, type FieldProps, type ObjectInputProps} from 's
 
 import {AnchorInput} from './anchor-input'
 import {SECTION_ANCHOR_TYPE} from './anchors'
-import {isAnchorHref, normalizeLinkHref} from './href'
 import {LinkInput} from './input'
 import {
   getReferenceTypesFromRoutes,
@@ -16,10 +15,13 @@ import type {
   LinkFieldPluginOptions,
   LinkInputProps,
 } from './types'
-
-const INVALID_URL_MESSAGE = 'Must be a path, query string, URL, email address, or phone number'
-
-const INVALID_ANCHOR_MESSAGE = 'Must be a fragment like #my-section, without spaces'
+import {
+  validateAnchorUrl,
+  validateLinkAnchor,
+  validateLinkReference,
+  validateLinkUrl,
+  validateSectionReference,
+} from './validation'
 
 function resolveRoutes(routes: LinkRouteDefinition[] | LinksPluginProps): LinkRouteDefinition[] {
   return Array.isArray(routes) ? routes : routes.routes
@@ -90,14 +92,7 @@ export function createLinkType(
         title: 'URL',
         type: 'string',
         placeholder: 'Search or paste a link',
-        validation: (rule) =>
-          rule.custom((value) => {
-            if (!value || value.trim().startsWith('?') || normalizeLinkHref(value)) {
-              return true
-            }
-
-            return {'en-US': INVALID_URL_MESSAGE}
-          }),
+        validation: (rule) => rule.custom(validateLinkUrl),
       }),
       ...(referenceTypes.length
         ? [
@@ -110,6 +105,7 @@ export function createLinkType(
                 disableNew: true,
               },
               to: referenceTypes.map((type) => ({type})),
+              validation: (rule) => rule.custom(validateLinkReference).warning(),
             }),
           ]
         : []),
@@ -119,6 +115,7 @@ export function createLinkType(
               name: 'anchor',
               title: 'Anchor',
               type: 'anchor',
+              validation: (rule) => rule.custom(validateLinkAnchor).warning(),
             }),
           ]
         : []),
@@ -174,11 +171,7 @@ export function createAnchorType(options: AnchorPluginOptions) {
         title: 'URL',
         type: 'string',
         placeholder: 'Search sections or type #my-section',
-        validation: (rule) =>
-          rule.custom((value) => {
-            if (!value || isAnchorHref(value)) return true
-            return {'en-US': INVALID_ANCHOR_MESSAGE}
-          }),
+        validation: (rule) => rule.custom(validateAnchorUrl),
       }),
       defineField({
         name: 'reference',
@@ -187,6 +180,7 @@ export function createAnchorType(options: AnchorPluginOptions) {
         weak: true,
         options: {disableNew: true},
         to: [{type: SECTION_ANCHOR_TYPE}],
+        validation: (rule) => rule.custom(validateSectionReference).warning(),
       }),
     ],
     components: {
